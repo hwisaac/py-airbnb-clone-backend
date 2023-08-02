@@ -122,7 +122,7 @@ if __name__ == '__main__':
 
 - `if __name__ == '__main__':`: 이 스크립트가 직접 실행되면 `main` 함수를 호출합니다. 이 스크립트가 다른 스크립트에 의해 임포트되는 경우에는 `main` 함수를 호출하지 않습니다.
 
-> 실제 서버에 배포할 때는 서버를 실행할 때 manage.py 말고 다른 걸 사용할 것이다.
+> (참고) 실제 서버에 배포할 때는 서버를 실행할 때 manage.py 말고 다른 걸 사용할 것입니다.
 
 
 
@@ -152,3 +152,35 @@ python manage.py runserver
 이제 `db.sqlite3` 파일을 살펴보면:
 
 ![](readMeImages/2023-08-02-14-41-54.png)
+
+
+Recap
+- django 는 세션,패스워드 등 모든 유저 데이터를 저장하는 곳으로 db 를 사용합니다.
+- django 는 `db.sqlite3` 파일에서 `auth_user` 라는 테이블을 찾습니다.
+
+
+#### `python manage.py createsuperuser` 명령을 실행 (poetry 가상환경에 있어야 한다.)
+
+`python manage.py createsuperuser`는 Django의 명령어로, 관리자 계정을 생성하는 데 사용됩니다. Django에서는 관리자 계정을 통해 관리자 사이트를 사용할 수 있습니다.
+
+관리자 사이트는 Django의 강력한 기능 중 하나로, 데이터베이스에 저장된 데이터를 조회, 생성, 수정, 삭제하는 인터페이스를 제공합니다. 예를 들어, 사용자 계정, 그룹, 애플리케이션의 모델 등의 데이터를 관리할 수 있습니다.
+
+`createsuperuser` 명령을 실행하면, 먼저 사용자 이름을 입력하라는 프롬프트가 나타납니다. 그 다음에 이메일 주소와 비밀번호를 입력하라는 프롬프트가 나타납니다. 이 정보를 입력하면 관리자 계정이 생성되고, 이 계정으로 관리자 사이트에 로그인할 수 있습니다.
+
+이 명령은 일반적으로 개발 환경에서 사용되며, 운영 환경에서는 보안상의 이유로 다른 방법을 사용해 관리자 계정을 생성하는 것이 일반적입니다.
+
+터미널:
+```
+Username (leave blank to use 'hwang-isaac'): hwisaac
+Email address: hwisaac0@gmail.com
+Password: 123123
+Password (again): 
+This password is too short. It must contain at least 8 characters.
+This password is too common.
+This password is entirely numeric.
+Bypass password validation and create user anyway? [y/N]: y
+Superuser created successfully.
+```
+
+이제 `/admin` 에서 로그인 하면 다음 화면을 볼 수 있습니다:
+![](readMeImages/2023-08-02-14-56-28.png)
