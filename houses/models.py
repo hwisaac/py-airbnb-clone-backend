@@ -1,6 +1,6 @@
 from django.db import models
 
-
+# Model 클래스를 상속한다
 class House(models.Model):
 
     """Model Definition for Houses"""

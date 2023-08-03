@@ -194,6 +194,8 @@ Superuser created successfully.
 
 > 모델(*)은 어플리케이션에서 데이터의 모양을 describe 합니다.
 
+> https://docs.djangoproject.com/ko/4.2/topics/db/models/
+
 Django에서의 "Model"은 데이터베이스와의 상호작용을 관리하는 Python 클래스를 의미합니다. Django는 데이터베이스의 스키마를 정의하고 데이터를 저장, 수정, 검색하는 데 사용되는 ORM(Object-Relational Mapping) 기술을 제공합니다. 이 ORM은 SQL 쿼리를 직접 작성하지 않고도 데이터베이스와 상호작용할 수 있도록 도와줍니다.
 
 Model 클래스는 Django 애플리케이션의 models.py 파일에 정의됩니다. 각 Model 클래스는 데이터베이스 테이블의 구조를 정의하고, 데이터베이스와 상호작용하는데 필요한 메서드와 속성을 가지고 있습니다.
@@ -225,4 +227,44 @@ class Book(models.Model):
 
 Django의 Model을 사용하면 데이터베이스와의 상호작용을 추상화하고 편리하게 관리할 수 있습니다. Model 클래스를 사용하여 데이터베이스의 스키마를 정의하면, Django는 데이터베이스에 대한 복잡한 처리를 대신 처리해주므로 개발자는 데이터베이스와 직접적인 상호작용에 대해 걱정하지 않고도 애플리케이션을 개발할 수 있습니다.
 
+<hr />
+
+db 는 해당 모델에 대해 전혀 모르는 상황입니다. 
+
+django 에게 파일의 존재를 알리기
+`config/settings.py`
+```py
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'houses.apps.HousesConfig',
+]
+```
+
+
+모델이 완성되었으면, `admin.py`에 `import` 해준다:
+```py
+from django.contrib import admin
+from .models import House
+
+
+@admin.register(House) # 이 HouseAdmin class 가 House 모델을 통제하게 한다
+class HouseAdmin(admin.ModelAdmin):
+    pass
+```
+
+<hr />
+
+`migration` 을 통해 db의 모양을 변경합시다.
+
+#### `python manage.py makemigrations` 
+
+`houses/migrations` 폴더에 `0001_initial.py` 파일이 생성됩니다.
+#### `python manage.py migrate` : 마이그레이션을 적용합니다.
+
+이제 `db` 가 `models.py` 가 연동되었습니다.
 
