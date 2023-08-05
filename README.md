@@ -263,8 +263,91 @@ class HouseAdmin(admin.ModelAdmin):
 
 #### `python manage.py makemigrations` 
 
-`houses/migrations` 폴더에 `0001_initial.py` 파일이 생성됩니다.
+model 에 관한 정보를 토대로 `houses/migrations` 폴더에 파일(예:`0001_initial.py` )을 생성합니다.
 #### `python manage.py migrate` : 마이그레이션을 적용합니다.
 
 이제 `db` 가 `models.py` 가 연동되었습니다.
 
+(model을 변경ㅏ면 makemigrations 와 migrate 를 다 해줘야 적용됩니다.)
+
+## model
+
+![Alt text](image.png)
+
+> `__str__` 메서드를 재정의하면 House object 와 같은 이름을 변경할 수 있습니다.
+
+```py
+class House(models.Model):
+
+    """Model Definition for Houses"""
+
+    name = models.CharField(max_length=140)
+    price_per_night = models.PositiveIntegerField()
+    description = models.TextField()
+    address = models.CharField(max_length=140)
+    # https://docs.djangoproject.com/en/4.2/ref/models/fields/#default
+    pats_allowed=models.BooleanField(default=True)
+    def __str__(self):
+        return self.name
+```
+
+## admin.py
+
+> `admin.py` 파일을 수정합시다.
+
+admin.py
+```py
+# 수정전
+from django.contrib import admin
+from .models import House
+
+@admin.register(House)
+class HouseAdmin(admin.ModelAdmin):
+    pass
+```
+
+`list`나 `tuple` 속성을 전달해야 합니다. (`string` 은 ❌)
+
+### list_display 속성
+
+> admin 패널에 보이고 싶은 column 들의 list 를 적어줍니다. (실제로 존재하는 이름들이어야 함)
+
+```py
+@admin.register(House)
+class HouseAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "price_per_night",
+        "address",
+        "pets_allowed"
+    ]
+```
+
+![](readMeImages/2023-08-05-13-56-17.png)
+
+### list_filter 속성
+
+> 어떤 column 을 기준으로 필터링 할 지를 적으면 됩니다.
+
+```py
+list_filter = [
+    "price_per_night",
+    "pets_allowed"
+]
+```
+![](readMeImages/2023-08-05-14-51-44.png)
+
+
+### search_fields 속성
+
+> 어떤 column 에 대해 검색할지 정합니다.
+
+```py
+search_fields = [
+    "address" # address__startswith 라고 하면 시작하는 단어로 검색합니다
+]
+```
+
+## field 
+필드 옵션 문서
+https://docs.djangoproject.com/en/4.2/ref/models/fields/
