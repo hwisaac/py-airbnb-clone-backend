@@ -291,7 +291,10 @@ class House(models.Model):
         return self.name
 ```
 
-## admin.py
+
+## field 
+필드 옵션 문서
+https://docs.djangoproject.com/en/4.2/ref/models/fields/
 
 > `admin.py` 파일을 수정합시다.
 
@@ -348,6 +351,110 @@ search_fields = [
 ]
 ```
 
-## field 
-필드 옵션 문서
-https://docs.djangoproject.com/en/4.2/ref/models/fields/
+
+## User 관리
+
+django 는 기본적으로 관리자패널(http://127.0.0.1:8000/admin/)과 User 에 대한 것들을 제공해줍니다.(http://127.0.0.1:8000/admin/auth/user/)
+이 것들을 어떻게 사용해야 할까요?
+커스터마이징하려면 어떻게 해야 할까요?
+
+**옵션1**
+- django 가 제공하는 user 를 이용해서 profile 모델을 만들고, Profile은 user에 추가하고 싶은 커스텀들을 가지도록 만듭니다.
+
+**옵션2**
+- [user 모델을 아예 새로 custom 한다](https://docs.djangoproject.com/en/4.2/topics/auth/customizing/#substituting-a-custom-user-model)
+
+> 기본으로 제공되는 user 모델만으로 충분하더라도 custom model 을 만들어서 대체하는것을 추천합니다.
+
+
+## vscode 가 django 를 찾지 못하는 경우
+> vscode 에서 django 에 노란색 밑줄이 그어진 현상을 해결하는 방법
+
+![](readMeImages/2023-08-07-22-16-01.png)
+
+문제원인
+django 는 가상환경에 설치되어 있습니다. 그러나, pylance 는 컴퓨터에서 django 를 찾기 때문에 찾을 수가 없습니다.
+
+문제해결
+poetry 의 가상환경의
+
+
+## python 포매터 추천: Formatter black
+
+## users app 을 만들자
+> Django 의 user 를 상속받는 우리만의 user
+
+
+
+```
+poetry shell
+```
+
+```
+python manage.py runserver
+```
+
+users 앱 생성하기
+```
+python manage.py startapp users
+```
+
+### user 를 상속받아서 만들기
+```py
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+# 새로운 user 모델을 만들 경우
+"""
+class User(models.Model):
+    pass
+"""
+
+# 상속 받아서 user 모델을 만들 경우
+class User(AbstractUser):
+    pass
+```
+
+
+#### settings.py 설정
+
+> django 에 user model 을 사용하겠다고 알려줘야 합니다.
+
+`config/settings.py` 에 다음을 추가:
+
+```py
+# Auth
+AUTH_USER_MODEL = "users.User"
+```
+
+`INSTALLED_APPS` 배열에도 `'users.apps.UsersConfig'` 추가
+
+```py
+# Application definition
+CUSTOM_APPS = [
+    "hoses.apps.HousesConfig",
+    
+]
+SYSTEM_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+
+INSTALLED_APPS = CUSTOM_APPS + SYSTEM_APPS
+
+```
+
+#### 만약 프로젝트 중간에 user 를 시작한 경우
+
+프로젝트 도중 기존에 user 모델을 사용해서 사용자를 만들어서 사용하고 있다면, 새로운 user 모델을 만들수가 없습니다.
+
+이런 경우, 우선 서버를 종료하고
+1. `db.sqlite3` 파일을 삭제해서 db의 모든 유저를 제거하고, migrations 폴더의 migration 들을 (앞에 숫자붙은 파일들) 도 삭제합니다.
+2. `python manage.py makemigrations` 실행
+3. `python manage.py migrate` 실행
+4. , 서버를 재시작합니다.
+
