@@ -456,5 +456,28 @@ INSTALLED_APPS = CUSTOM_APPS + SYSTEM_APPS
 1. `db.sqlite3` 파일을 삭제해서 db의 모든 유저를 제거하고, migrations 폴더의 migration 들을 (앞에 숫자붙은 파일들) 도 삭제합니다.
 2. `python manage.py makemigrations` 실행
 3. `python manage.py migrate` 실행
-4. , 서버를 재시작합니다.
+4. `python manage.py runserver` 서버를 재시작합니다.
 
+`python manage.py createsuperuser` 관리자 계정도 생성
+
+> Note : 만약에 다음과 같이 default 값을 전해주지 않은 `is_host` 필드가 있는 채로 migrate 를 시도한다면 에러가 발생합니다
+
+```py
+class User(AbstractUser):
+    first_name = models.CharField(max_length=150, editable=False)
+    last_name = models.CharField(max_length=150, editable=False)
+    name = models.CharField(max_length=150, editable=False)
+    is_host = models.BooleanField()
+```
+
+```
+It is impossible to add a non-nullable field 'is_host' to user without specifying a default. This is because the database needs something to populate existing rows.
+Please select a fix:
+ 1) Provide a one-off default now (will be set on all existing rows with a null value for this column)
+ 2) Quit and manually define a default value in models.py.
+Select an option: 
+```
+- non-nullable 필드인 `is_host` 필드에 default value 없이 모델에 추가하는 것은 불가능합니다.(데이터베이스는 기존 rows 에 입력 시킬 데이터가 필요하기 때문. 이미 생성해둔 슈퍼유저가 `is_host=null` 인 데이터를 가지기 때문 )
+    1. 해결1: 지금 1회성 디폴트값을 제공한다
+    2. 해결2: 직접 models.py 파일에 default value 를 정의해준다.
+    3. 해결3: nullable 이도록 `is_host = models.BooleanField(null=True)` 로 수정합니다.
