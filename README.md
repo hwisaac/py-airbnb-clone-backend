@@ -399,6 +399,20 @@ users 앱 생성하기
 python manage.py startapp users
 ```
 
+`INSTALLED_APPS` 에 `users` 앱 추가하기
+```py
+INSTALLED_APPS = [
+    ...,
+    "users.apps.UsersConfig",
+]
+```
+
+생성한 apps 폴더의 `models.py` 에서 모델 및 필드 정의하기 (`__str__`, F oreignKey 등)
+생성한 apps 폴더의 `admin.py` 에서 관리자 패널에 대해 정의하기
+`python manage.py makemigrations` , `python manage.py migrate` 키워드로 동기화시키기
+
+
+
 ### user 를 상속받아서 만들기
 ```py
 from django.db import models
@@ -481,3 +495,39 @@ Select an option:
     1. 해결1: 지금 1회성 디폴트값을 제공한다
     2. 해결2: 직접 models.py 파일에 default value 를 정의해준다.
     3. 해결3: nullable 이도록 `is_host = models.BooleanField(null=True)` 로 수정합니다.
+
+<hr />
+
+# ORM
+
+<hr />
+
+# Power Admin
+
+<hr />
+
+# URLs and Views
+
+<hr />
+
+# Django REST Framework
+
+<hr />
+
+# REST API
+
+<hr />
+
+# Users API
+
+<hr />
+
+# Graphql API
+
+<hr />
+
+# Authentication
+
+<hr />
+
+# API Testing
