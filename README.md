@@ -498,16 +498,145 @@ Select an option:
 
 <hr />
 
+
 # ORM
+## queries
+https://docs.djangoproject.com/en/4.2/topics/db/queries/
+
+> 지금까지 model 을 생성하는 것에 배웠다면 이젠 소통하는 방법을 배울 차례입니다. django 는 admin 패널 없이도 python 코드를 통해 db 와 소통할 수 있게 해줍니다. (객체를 생성,찾기,갱신,삭제 등)
+
+
+1. `python manage.py shell` : django 가 구성된 파이썬 콘솔을 엽니다.
+2. `from rooms models import Room` 을 콘솔에 입력 할 수 있습니다.
+
+![](readMeImages/2023-08-09-16-21-17.png)
+3. `Room.objects` 를 사용하면 Room 오브젝트에 접근할 수 있습니다.
+
+![](readMeImages/2023-08-09-16-22-46.png)
+
+예시 : 
+1. `room = Room.object(name="Beautiful House in 서울")`
+2. `room.price = 20`
+3. `room.save()` 를 하면 20 가격으로 정해진다. 
+
+자주쓰는 메서드
+- `.all()` 
+- `.filter()`조건을 갖춘 데이터들을 찾을 때 사용
+- `.get()` 조건을 갖춘 하나의 데이터를 찾을 때 사용(한가지만 리턴하도록 조건을 잘 정해야 함)
+- `.create()`
+- `.exclude()` 조건을 제외함 
+- `.count()` 갯수를 셈
+
+
+### query set
+
+> `Room.objects.all()` 호출 시 단순히 배열이 아닌 <QuerySet > 를 리턴 받는데, query set은 연산자를 함꼐 묶어주는 일을 한다. 
+
+`Room.objects.filter(pet_friendly=True).exclude(price__lt=15)`
+
+> 메서드를 정의하는 방법도 있습니다.
+
+rooms/admin.py
+```py
+from django.contrib import admin
+from .models import Room, Amenity
+
+@admin.register(Room)
+class RoomAdmin(admin.ModelAdmin):
+    list_display = (
+        ...
+    )
+
+    list_filter = (
+        ...
+    )
+
+    def total_amenities(self, room):
+        return room.amenities.count()
+```
+
+rooms/models.py 에 정의할 경우
+```py
+class Room(CommonModel):
+    ...
+    def total_amenities(self):
+        return self.amenities.count()
+```
+
+### foreign key 로 필터링 하기
+#### reverse accessor 
+
+> 문제: Room 모델은 어떤 owner 가 방을 소유했는지를 가르키는 Foreign key 를 가지고 있다고 합시다. 그러면 특정 owner 가 어떤 방들을 가지고 있는지, 몇개를 갖고있는 지에 대한 정보를 알려면 어떻게 해야 할까요?
+
+- 방법1 : `Room.objects.filter(owner__username='hwisaac')` : 해당 username 에 해당하는 모든 Room 들을 반환합니다.
+- 방법2 : (reverse accessor) 
+
+```py
+me = User.objects.get(pk=1)
+me.rooms # 에러
+me.room_set.all() # 작동
+```
+- foreign 키를 연결할 때마다 연결당한 해당 모델은 _set 에 해당하는 속성이 생깁니다.
+
+
+> 접근자를 커스터마이징 해봅시다! <related name>
+> `user.room_set.all()` 대신 `category.rooms.all()` 으로 접근하는 방법은?
+
+rooms/models.py
+```py
+class Room(CommonModel):
+     owner = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name='rooms', # 👈추가
+    )
+```
+이렇게하면 `user.room_set` 대신에 `user.rooms` 로 접근할 수 있습니다.
+
+
+
 
 <hr />
 
+# django 의 최적화
+```py
+# 모든 데이터를 불러오기 때문에 성능상 좋지 않음
+for review in room.reviews.all():
+    ...
+
+# 좀더 구체적인 쿼리요청으로 필요한 데이터만 가져와서 성능을 개선
+for review_rating in room.reviews.all().values("rating"):
+    ...
+```
+
 # Power Admin
 
+1. action 커스텀하기
+2. admin 패널의 `display_list` 커스텀하기 
+3. 검색 기능 커스텀하기 (`search_fields`)
+
+## action custom
+rooms/admin.py
+```py
+@admin.action(description="가격 초기화하기")
+def reset_prices(model_admin, request, queryset): # (action을 호출하는 class, 액션 호출에 대한 정보, 사용자가 선택한 객체들의 리스트)
+    print(model_admin) # rooms.RoomAdmin
+    print(dir(request)) # ['COOKIE', ...]
+    print(queryset) # <QuerySet [<Room: Apt. in 서울>]>
+    for room in rooms.all():
+        room.price = 0
+        room.save()
+
+@admin.register(Room)
+class RoomAdmin(admin.ModelAdmin):
+    actions = ( reset_prices, )
+    ...
+```
 <hr />
 
 # URLs and Views
 
+> 실제로 우리 프로젝트에서는 django 의 템플릿을 적용하진 않을 예정이다.
 <hr />
 
 # Django REST Framework
