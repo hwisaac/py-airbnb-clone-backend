@@ -1212,6 +1212,71 @@ https://www.django-rest-framework.org/api-guide/routers/
 
 # REST API
 
+## `Rooms`: serializer 간에 relation 을 어떻게 만드는가
+
+- room 을 수정하고 싶을 때 관계가 어떤지, 권한을 고려해야 합니다. 
+
+![](readMeImages/2023-08-11-17-12-59.png)
+이와 같은 데이터보다 
+![](readMeImages/2023-08-11-17-13-25.png)
+이러한 데이터가 있는 것이 더 좋을 것입니다.
+
+> `serializer` 에서 `depth` 값을 넣어주면 됩니다!
+
+rooms/serializers.py
+```py
+from rest_framework.serializers import ModelSerializer
+from .models import Amenity, Room
+
+
+class RoomSerializer(ModelSerializer):
+    class Meta:
+        model = Room
+        fields = "__all__"
+        depth = 1 # id 대신에 데이터를 넣어줌
+
+
+class AmenitySerializer(ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = "__all__"
+```
+
+rooms/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.Rooms.as_view()),
+    path("amenities/", views.Amenities.as_view()),
+    path("amenities/<int:pk>", views.AmenityDetail.as_view()),
+]
+```
+
+rooms/views.py
+```py
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_204_NO_CONTENT
+from rest_framework.response import Response
+from rest_framework.exceptions import NotFound
+from .models import Amenity, Room
+from .serializers import AmenitySerializer, RoomSerializer
+
+... 
+
+class Rooms(APIView):
+    def get(self, request):
+        all_rooms = Room.objects.all()
+        serializer = RoomSerializer(all_rooms, many=True)
+        return Response(serializer.data)
+```
+
+## serializer 수정해서 필요한 정보만 주도록 커스텀하기
+
+> 만약 rooms 의 전체 데이터를 요청할 때 너무 많은 데이터를 넘겨줘야 하면 db 에 부담이 될 수 있습니다. 필요한 정보만 주는 것이 좋습니다.
+
+
 
 <hr />
 
