@@ -1155,6 +1155,60 @@ class Categories(APIView):
 
 ```
 
+## `ModelViewSet` 으로 views.py 를 개선하기
+
+> 너무 많은 추상화, 너무 많은 코드가 숨겨지므로 모호해집니다. 더 명확하게 코드를 작성하는 것이 더 나을 수 있습니다.(API View 를 작성하는게 낫습니다)
+
+https://www.django-rest-framework.org/api-guide/viewsets/
+
+- `ModelViewSet` 을 상속하는 클래스를 만듭니다. 
+  - `CategorySerializer` 를 알려줍니다.
+  - `queryset` 에 category 객체를 넣어줍니다.
+- `urls.py` 에서 http 메소드 마다 작동할 class 메소드를 연결해줍니다.
+
+categories/views.py
+```py
+from rest_framework.viewsets import ModelViewSet
+from .models import Category
+from .serializers import CategorySerializer
+
+class CategoryViewSet(ModelViewSet):
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+```
+
+
+categories/urls.py
+```py
+urlpatterns = [
+    path(
+        "",
+        views.CategoryViewSet.as_view(
+            {
+                "get": "list", # get 요청이 오면 list라는 메소드의 코드 실행
+                "post": "create", # post 요청이오면 create메소드 실행
+            }
+        ),
+    ),
+    path(
+        "<int:pk>",
+        views.CategoryViewSet.as_view(
+            {
+                "get": "retrieve",
+                "put": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+    ),
+]
+```
+
+## router
+
+https://www.django-rest-framework.org/api-guide/routers/
+
+> router 를 사용하면 
+
 
 # REST API
 
