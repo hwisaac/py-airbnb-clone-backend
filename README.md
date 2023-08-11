@@ -974,7 +974,7 @@ NotFound 화면
 
 ![](readMeImages/2023-08-11-12-54-13.png)
 
-## DELETE : db 에서 삭제하게
+## DELETE : db 에서 삭제하기
 
 - views 에서 DELETE 메서드 추가
 
@@ -992,9 +992,133 @@ def category(request, pk):
 
 ![](readMeImages/2023-08-11-13-44-52.png)
 
+## API Views
+> 지금까지 적용한 코드보다 훨씬 간결하고 깔끔하게 API 를 구성할 수 있습니다!
+
+- `APIView` 를 상속하는 클래스를 만듭니다.
+- `get`, `post` 등의 메서드를 정의합니다.
+
+categories/views.py
+```py
+from rest_framework.views import APIView
+```
+
+```py
+# 변경전
+@api_view(["GET", "POST"])
+def categories(request):
+    if request.method == "GET":
+        all_categories = Category.objects.all()
+        serializer = CategorySerializer(all_categories, many=True)
+        return Response(serializer.data)
+    elif request.method == "POST":
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            new_category = serializer.save()
+            return Response(
+                CategorySerializer(new_category).data,
+            )
+        else:
+            return Response(serializer.errors)
+
+# 변경후
+class Categories(APIView):
+    def get(self, request):
+        all_categories = Category.objects.all()
+        serializer = CategorySerializer(all_categories, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            new_category = serializer.save()
+            return Response(
+                CategorySerializer(new_category).data,
+            )
+        else:
+            return Response(serializer.errors)
+```
+
+- get_object 는 REST framework 의 컨벤션을 따르는 메서드입니다.
+- 상세 정보를 가져올때는 `get_object`로 우선 가져오고 `get`/`put`/`delete` method 등에 공유합니다
+
+`categories/views.py`
+```py
+# 변경전
+@api_view(["GET", "PUT", "DELETE"])
+def category(request, pk):
+    try:
+        category = Category.objects.get(pk=pk)
+    except Category.DoesNotExist:
+        raise NotFound
+
+    if request.method == "GET":
+        serializer = CategorySerializer(category)
+        return Response(serializer.data)
+    elif request.method == "PUT":
+        serializer = CategorySerializer(
+            category,
+            data=request.data,
+            partial=True,
+        )
+        if serializer.is_valid():
+            updated_category = serializer.save()
+            return Response(CategorySerializer(updated_category).data)
+        else:
+            return Response(serializer.errors)
+    elif request.method == "DELETE":
+        category.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+
+# 변경후 
+class CategoryDetail(APIView):
+    # get_object 는 REST framework 의 컨벤션을 따르는 메서드입니다.
+    # 상세 정보를 가져올때는 get_object로 우선 가져오고 get/put/delete method 등에 공유합니다
+    def get_object(self, pk):
+        try:
+            return Category.objects.get(pk=pk)
+        except Category.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        serializer = CategorySerializer(self.get_object(pk))
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        serializer = CategorySerializer(
+            self.get_object(pk),
+            data=request.data,
+            partial=True,
+        )
+        if serializer.is_valid():
+            updated_category = serializer.save()
+            return Response(CategorySerializer(updated_category).data)
+        else:
+            return Response(serializer.errors)
+
+    def delete(self, request, pk):
+        self.get_object(pk).delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+```
+
+categories/urls.py
+```py
+# 변경전
+urlpatterns = [
+    path('', views.categories),
+    path("<int:pk>", views.category),
+]
+# 변경후 
+urlpatterns = [
+    path("", views.Categories.as_view()),
+    path("<int:pk>", views.CategoryDetail.as_view()),
+]
+```
 <hr />
 
+
 # REST API
+
 
 <hr />
 
