@@ -822,6 +822,49 @@ def category(request, pk):
 `/categories` 접속
 ![](readMeImages/2023-08-11-09-46-55.png)
 
+## Post request
+
+- `POST` 메서드로 요청을 받을 수 있습니다.
+- `serializer` 는 파이썬 데이터를 JSON 으로 번역하기도 하면서, 반대로 JSON 을 파이썬 데이터로 변환해주는 역할도 합니다.
+
+```py
+from .serializers import CategorySerializer
+
+@api_view(["GET", "POST"])
+def categories(request):
+    if request.method == "GET":
+        all_categories = Category.objects.all()
+        serializer = CategorySerializer(all_categories, many=True)
+        return Response(serializer.data)
+    elif request.method == "POST":
+        # 주의: POST 요청을 받을 때 서버는 해당 데이터가 model 에 적합한지 항상 데이터를 검증해야 합니다!
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid(): # serializer 는 데이터 검증도 도와줍니다
+            return Response({"created": True})
+        else:
+            return Response(serializer.errors)
+```
+
+categories/serializers.py
+```py
+from rest_framework import serializers
+
+class CategorySerializer(serializers.Serializer):
+    # read_only=True 면 필수로 넣지 않아도 됩니다.
+    pk = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(
+        # 검증할 조건
+        required=True,
+        max_length=50, 
+    )
+    kind = serializers.CharField(
+        max_length=15,
+    )
+    created_at = serializers.DateTimeField(read_only=True)
+```
+
+
+## `.save()` Post 데이터를 db 에 저장하기
 <hr />
 
 # REST API
