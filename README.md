@@ -864,7 +864,60 @@ class CategorySerializer(serializers.Serializer):
 ```
 
 
-## `.save()` Post 데이터를 db 에 저장하기
+## `serializer.save()` Post 데이터를 db 에 저장하기
+
+> `serializer.save()` 가 호출되면 `create` 메서드를 찾아서 실행합니다.
+> `create` 메서드는 (에러 혹은) 객체를 리턴해야 합니다.
+
+
+categories/views.py
+```py
+@api_view(["GET", "POST"])
+def categories(request):
+    ... 
+    if request.method == "POST":
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            new_category = serializer.save()
+            return Response(
+                CategorySerializer(new_category).data,
+            )
+        else:
+            return Response(serializer.errors)
+```
+
+categories/views.py
+```py
+from rest_framework import serializers
+from .models import Category
+
+# name 과 kind 가 JSON 으로 어떻게 표현하는지 설명
+class CategorySerializer(serializers.Serializer):
+    pk = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(
+        required=True,
+        max_length=50,
+    )
+    kind = serializers.ChoiceField(
+        choices=Category.CategoryKindChoices.choices,
+    )
+    created_at = serializers.DateTimeField(read_only=True)
+    
+    def create(self, validated_data):
+        return Category.objects.create(**validated_data)
+```
+
+- `**validated_data` 는 다음과 같은 역할을 수행합니다
+
+```py
+validated_data = {'name' : 'Category', 'kind': 'rooms'}
+
+**validated_data = {
+    name = 'Category'
+    kind = 'rooms'
+}
+```
+
 <hr />
 
 # REST API
