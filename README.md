@@ -1116,6 +1116,45 @@ urlpatterns = [
 ```
 <hr />
 
+## ModelSerializer : Serializer 의 코드 단순화
+
+> Django 에 Model 을 이미 설명했기 때문에, 해당 모델을 활용해서 serializer 에 적용할 수 있습니다. 
+
+- `ModelSerializer` 는 정의해둔 `model`을 바탕으로 필드(`fields`/`exclude` 속성)를 가져와 주고 여러 가지 기능을 제공해줍니다.
+- 또한, 자동으로 `create`, `update` 메소드를 만들어주기 때문에 직접 정의하지 않아도 됩니다.
+
+categories/serializers.py
+```py
+from rest_framework import serializers
+from .models import Category
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category # category 모델을 위한 serializer를 생성합니다.
+        fields = "__all__" # 어떤 field를 가져올지 선택합니다.
+```
+
+categories/views.py
+```py
+# 변경전
+class Categories(APIView):
+    def get(self, request):
+        all_categories = Category.objects.all()
+        serializer = CategorySerializer(all_categories, many=True)
+        ...
+
+# 변경후
+class Categories(APIView):
+    def get(self, request):
+        all_categories = Category.objects.all()
+        serializer = CategorySerializer(
+            all_categories,
+            many=True,
+        )
+        ...
+
+```
+
 
 # REST API
 
