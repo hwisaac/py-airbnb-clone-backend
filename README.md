@@ -918,6 +918,80 @@ validated_data = {'name' : 'Category', 'kind': 'rooms'}
 }
 ```
 
+## `update()` PUT 데이터를 db 에 업데이트하기
+
+- `serializers` 에 `update` 메서드를 추가합니다.
+- `PUT` 메서드를 등록합니다
+
+categories/serializers.py
+```py
+from rest_framework import serializers
+from .models import Category
+
+# name 과 kind 가 JSON 으로 어떻게 표현하는지 설명
+class CategorySerializer(serializers.Serializer):
+    ... 
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get("name", instance.name)
+        instance.kind = validated_data.get("kind", instance.kind)
+        instance.save()
+        return instance
+
+```
+
+categories/views.py
+```py
+@api_view(["GET", "PUT"])
+def category(request, pk):
+    if request.method == "PUT":
+        serializer = CategorySerializer(
+            category, # 업데이트하려는 category를 db 에서 가져와야 한다(그래야 update실행. instance 에 category를 넣어줌)
+            data=request.data, # 사용자로부터 받은 데이터로 serializer 만든다
+            partial=True, # 입력데이터가 완벽한 형태가 아닐 수 있음. 부분적인 데이터도 허용
+        )
+        if serializer.is_valid():
+            # 여기 .save() 는 create 가 아닌 update 메서드를 호출합니다.
+            updated_category = serializer.save()
+            return Response(CategorySerializer(updated_category).data)
+        else:
+            return Response(serializer.errors)
+```
+## DoesNotExist 에러 처리하기
+```py
+from rest_framework.exceptions import NotFound
+
+@api_view(["GET", "PUT"])
+def category(request, pk):
+    try:
+        category = Category.objects.get(pk=pk)
+    except Category.DoesNotExist:
+        raise NotFound
+    
+    # ...
+```
+
+NotFound 화면
+
+![](readMeImages/2023-08-11-12-54-13.png)
+
+## DELETE : db 에서 삭제하게
+
+- views 에서 DELETE 메서드 추가
+
+categories/views.py
+```py
+@api_view(["GET", "PUT", "DELETE"])
+def category(request, pk):
+    ...
+    elif request.method == "DELETE":
+        category.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+```
+
+`/categories/1` 로 접속하면 `DELETE` 버튼이 추가되어 있습니다.
+
+![](readMeImages/2023-08-11-13-44-52.png)
+
 <hr />
 
 # REST API
