@@ -1276,6 +1276,114 @@ class Rooms(APIView):
 
 > 만약 rooms 의 전체 데이터를 요청할 때 너무 많은 데이터를 넘겨줘야 하면 db 에 부담이 될 수 있습니다. 필요한 정보만 주는 것이 좋습니다.
 
+- serializers 에서 `fields="__all__` 대신 필요한 필드만 선택합니다.
+
+users/serializers.py
+```py
+from rest_framework.serializers import ModelSerializer
+from .models import User
+
+# 조금 보여줄 유저정보
+class TinyUserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "name",
+            "avatar",
+            "username",
+        )
+```
+
+rooms/serializers.py
+```py
+from users.serializers import TinyUserSerializer
+from categories.serializers import CategorySerializer
+
+class AmenitySerializer(ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = (
+            "name",
+            "description",
+        )
+
+# depth
+class RoomDetailSerializer(ModelSerializer):
+    owner = TinyUserSerializer() # owner 를 가져올때 TinyUserSerializer 를 이용하라
+    amenities = AmenitySerializer(many=True)
+    category = CategorySerializer()
+
+    class Meta:
+        model = Room
+        fields = "__all__"
+
+class RoomListSerializer(ModelSerializer):
+    class Meta:
+        model = Room
+        fields = (
+            "pk",
+            "name",
+            "country",
+            "city",
+            "price",
+        )
+
+```
+rooms/views.py
+```py
+from .serializers import AmenitySerializer, RoomListSerializer, RoomDetailSerializer
+
+class RoomDetail(APIView):
+    def get_object(self, pk):
+        try:
+            return Room.objects.get(pk=pk)
+        except Room.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        room = self.get_object(pk)
+        serializer = RoomDetailSerializer(room)
+        return Response(serializer.data)
+```
+
+`api/v1/rooms/1` 으로 디테일 정보 출력한 내용
+```json
+HTTP 200 OK
+Allow: GET, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+{
+    "id": 1,
+    "owner": {
+        "name": "",
+        "avatar": null,
+        "username": "user1"
+    },
+    "amenities": [
+        {
+            "name": "amenity1",
+            "description": "amenity1 설명"
+        }
+    ],
+    "category": {
+        "name": "카테1",
+        "kind": "experiences"
+    },
+    "created_at": "2023-08-11T17:11:18.750463+09:00",
+    "updated_at": "2023-08-11T17:11:18.750490+09:00",
+    "name": "룸1",
+    "country": "한국",
+    "city": "서울",
+    "price": 4,
+    "rooms": 3,
+    "toilets": 2,
+    "description": "첫번째 룸입니다",
+    "address": "서울",
+    "pet_friendly": true,
+    "kind": "entire_place"
+}
+```
 
 
 <hr />
