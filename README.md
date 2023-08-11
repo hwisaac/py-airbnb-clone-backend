@@ -637,9 +637,190 @@ class RoomAdmin(admin.ModelAdmin):
 # URLs and Views
 
 > 실제로 우리 프로젝트에서는 django 의 템플릿을 적용하진 않을 예정이다.
+
+config/urls.py
+```py
+from django.contrib import admin
+from django.urls import path
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+]
+```
+옵션1:
+`urls.py` 파일에 직접 모든 url 추가하기
+
+옵션2(분할정복):
+생성한 각 app 마다 `urls.py` 파일을 생성해준 뒤, `config/urls.py` 파일에 추가하기
+
+## views.py 
+
+> view 는 유저가 특정 url 에 접근할 때 작동하는 함수입니다.
+
+
+예시: 유저가 /rooms 로 접속한다.
+
+rooms/views.py
+```py
+from django.shortcuts import render
+from django.http import HttpResponse
+
+# Create your views here.
+def sayHello(request):
+    return HttpResponse("hello")
+```
+
+config/urls.py
+```py
+from django.contrib import admin
+from django.urls import path
+from rooms import views as room_views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path("rooms", room_views.say_hello),
+]
+```
+
+## 분할정복 해보기! (추천)
+
+room/views.py
+```py
+from django.shortcuts import render
+from django.http import HttpResponse
+
+def sayHello(request):
+    return HttpResponse("hello")
+
+def see_one_room(request, room_id):
+    return HttpResponse(f"see room with id : {room_id}")
+```
+
+room/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.say_hello),
+    path("<int:room_id>", views.see_one_room)
+]
+```
+
+config/urls.py
+```py
+from django.contrib import admin
+from django.urls import path
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('rooms/', include('rooms.urls')),
+]
+
+```
+
+> 현재 트랜드에서 django 의 쓰임새
+
+- UI 는 리액트에 맡깁니다.
+- admin 패널 제작
+- ORM 사용
+- FE 에 JSON 제공하기 
+- GraphQL 쿼리에 응답하기
+
+
 <hr />
 
 # Django REST Framework
+
+> Django REST framework 는 쟝고로 API 만드는 걸 아주 쉽게 만들어주는 패키지입니다.
+
+## 설치
+
+- `poetry shell`
+- `poetry add djangorestframework`
+- `config/settings.py` 에 INSTALLED_APPS 에 `"rest_framework"` 추가
+
+config/settings.py
+```py
+THIRD_PARTY_APPS = [
+    "rest_framework",
+]
+
+INSTALLED_APPS = SYSTEM_APPS + CUSTOM_APPS + THIRD_PARTY_APPS
+```
+
+## REST framework 를 사용하지 않는 경우
+
+- GET POST /categories
+- GET /categories/1
+
+> /categories 로 접속하면 categories.urls 로 간다:
+
+config/urls.py
+```py
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('categories/', include("categories.urls")),
+]
+```
+
+categories/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('categories/', views.categories),
+]
+```
+
+categories/views.py
+```py
+from django.http import JsonResponse
+from .models import Category
+
+def categories(request):
+    all_categories = Category.objects.all()
+    
+    return JsonResponse({"ok": True})
+```
+
+## REST Framework 를 사용한 경우
+
+- `@api_view()` 데코레이터를 적용
+- `rest_framework.response` 의 `Response` 로 응답하기
+- `serializers.py` 모듈에 serializer 를 작성하기
+
+categories/serializers.py
+```py
+from rest_framework import serializers
+
+# name 과 kind 등이 JSON 으로 어떻게 표현하는지 설명
+class CategorySerializer(serializers.Serializer):
+    pk = serializers.IntegerField()
+    name = serializers.CharField(required=True)
+    kind = serializers.CharField()
+    created_at = serializers.DateTimeField()
+```
+
+categories/views.py
+```py
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Category
+
+@api_view()
+def category(request, pk):
+    category = Category.objects.get(pk=pk)
+    serializer = CategorySerializer(category)
+    return Response(serializer.data)
+```
+
+`/categories` 접속
+![](readMeImages/2023-08-11-09-46-55.png)
 
 <hr />
 
