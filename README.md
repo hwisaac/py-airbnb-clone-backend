@@ -1741,6 +1741,20 @@ class Rooms(APIView):
             raise NotAuthenticated
 ```
 
+## Delete room
+
+```py
+class RoomDetail(APIView):
+    def delete(self, request, pk):
+        room = self.get_object(pk)
+        if not request.user.is_authenticated:
+            raise NotAuthenticated
+        if room.owner != request.user:
+            raise PermissionDenied
+        room.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+```
+
 # Users API
 
 <hr />
