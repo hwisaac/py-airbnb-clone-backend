@@ -1755,6 +1755,126 @@ class RoomDetail(APIView):
         return Response(status=HTTP_204_NO_CONTENT)
 ```
 
+## SerializerMethodField
+
+> 유저가 요청한 데이터를 계산해서 필드로 만들고자 할 떄, 누가 보는지에 따라 값이 달라지는 필드를 만들어야 할 때 등은 어떻게 해야 할까요?
+
+### 동적으로 필드 추가하기
+
+rooms/models.py
+```py
+class Room(CommonModel):
+    def rating(room):
+        count = room.reviews.count()
+        if count == 0:
+            return 0
+        else:
+            total_rating = 0
+            for review in room.reviews.all().values("rating"):
+                total_rating += review["rating"]
+            return round(total_rating / count, 2)
+```
+모든 방의 평균 리뷰를 볼수 있도록 이 코드를 serializer 에서도 쓰고 싶습니다. 
+
+1. 코드를 먼저 실행하고, 그 결과를 field 에 입력합니다.
+2. 그 후 room 모델의 rating 메서드를 호출하고 field 에 넣습니다.
+
+
+- `ModelSerializer` 를 상속하는 대신에 `serializers.ModelSerializer` 를 상속하여 클래스를 만듭니다.
+- 이 클래스에서 `rating = serializers.SerializerMethodField()` 코드는 장고에게, `rating` 의 값을 계산할 method 를 만들것임을 알려줍니다.
+- 그리고 접두사 **`get_`** 을 붙인 메서드 `get_rating` 을 정의합니다.
+  - `get_rating`는 리턴한 값을 `rating` 값에 넣어줍니다.
+  - 첫번째 인자는 `self`, 두번째 인자는 현재 serializing 하는 `object`를 받습니다.
+
+rooms/serializers.py
+```py
+class RoomDetailSerializer(serializers.ModelSerializer):
+    owner = TinyUserSerializer(read_only=True)
+    amenities = AmenitySerializer(
+        read_only=True,
+        many=True,
+    )
+    category = CategorySerializer(
+        read_only=True,
+    )
+    rating = serializers.SerializerMethodField()
+    class Meta:
+        model = Room
+        fields = "__all__"
+
+    def get_rating(self, room):
+        return room.rating()
+
+
+class RoomListSerializer(serializers.ModelSerializer):
+    rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Room
+        fields = (
+            "pk",
+            "name",
+            "country",
+            "city",
+            "price",
+            "rating",
+        )
+
+    def get_rating(self, room):
+        return room.rating()
+```
+
+
+GET /api/v1/rooms/ 응답
+```json
+HTTP 200 OK
+Allow: GET, POST, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+[
+    {
+        "pk": 1,
+        "name": "룸1",
+        "country": "한국",
+        "city": "서울",
+        "price": 4,
+        "rating": 0
+    },
+    {
+        "pk": 2,
+        "name": "",
+        "country": "한국",
+        "city": "서울",
+        "price": 321,
+        "rating": 0
+    },
+    {
+        "pk": 3,
+        "name": "House created with DRF",
+        "country": "한국",
+        "city": "서울",
+        "price": 321,
+        "rating": 0
+    },
+    {
+        "pk": 4,
+        "name": "House created with DRF 22",
+        "country": "한국",
+        "city": "서울",
+        "price": 4000,
+        "rating": 0
+    },
+    {
+        "pk": 5,
+        "name": "House created with DRF 444",
+        "country": "한국",
+        "city": "서울",
+        "price": 444,
+        "rating": 0
+    }
+]
+```
 # Users API
 
 <hr />
