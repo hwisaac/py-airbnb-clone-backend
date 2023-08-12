@@ -1394,10 +1394,19 @@ Vary: Accept
 
 ## 에러: create() method does not support writable nested fields by default.
 
-> many-to-many 필드나, foreign key 에 해당하는 필드에 관한 정보도 함께 POST 하더라도, 해당 데이터들은 DB 에 저장이 될 수 없기 때문에 나오는 에러입니다.
+> many-to-many 필드나, foreign key 에 해당하는 필드에 관한 정보도 함께 POST 하더라도, 해당 데이터들은 DB 에 저장이 될 수 없기 때문에 나오는 에러입니다. 어떻게 relationship 을 정해줄 수 있을까요?
 
 - 해당 필드를 `read_only=True` 
 - `.save()` 메서드가 호출될 때, `owner=request.user` 의 정보를 같이 넘겨줍니다.
+
+> 원리: user 데이터로 생성된 serializer가 `serializer.save(owner=request.user)` 메서드를 호출하면 rooms/serializers.py 의 create 메서드를 호출하게 됩니다. 이 create 의 `validated_data` 에 `owner` 정보를 추가하여 전달하게 되고, 이 정보를 포함한 데이터를 생성하게 되므로 relation 이 정의가 됩니다.
+
+```py
+    # APIView 를 사용하면 create 메소드는 일부 정의하지 않아도 됨
+    def create(self, validated_data):
+        # owner 의 정보가 validated_data 에 담겨서 전달됩니다.
+        return Room.objects.create(**validated_data)
+```
 
 rooms/views.py
 ```py
@@ -1421,6 +1430,145 @@ class Rooms(APIView):
         else:
             raise NotAuthenticated
 ```
+### 테스트
+POST /api/v1/rooms/
+```json
+{
+    "price":321,
+    "rooms" : 1,
+    "toilets": 2,
+    "description": "test",
+    "address" : "테스트주소",
+    "kind" : "private_room"
+}
+```
+
+응답
+```json
+HTTP 200 OK
+Allow: GET, POST, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+{
+    "id": 2,
+    "owner": {
+        "name": "",
+        "avatar": null,
+        "username": "hwisaac"
+    },
+    "amenities": [],
+    "category": null,
+    "created_at": "2023-08-12T13:48:40.676111+09:00",
+    "updated_at": "2023-08-12T13:48:40.676164+09:00",
+    "name": "",
+    "country": "한국",
+    "city": "서울",
+    "price": 321,
+    "rooms": 1,
+    "toilets": 2,
+    "description": "test",
+    "address": "테스트주소",
+    "pet_friendly": true,
+    "kind": "private_room"
+}
+```
+
+
+> `owner` 가 잘 인식되고 있는 것을 알수있습니다. 
+> `"category" : 2` `"amenity": [1,2,3]` 에 해당 하는 정보도 같이 POST 해서 연결하려면 어떻게 해야 할까요?
+
+### room 생성시 category 에 대한 입력을 받아서 relation 주기
+
+Goal:
+1. 사용자가 category 넘버를 POST 하면, 해당하는 아이디를 가진 카테고리를 찾는다.
+2. 해당 카테고리와 생성된 방을 연결시킨다.
+
+
+- 단순히 `"category" : 2` 를 POST 하면 request.data 에는 담겨 있지만, validated_data 에는 담겨있지 않습니다. -> serializer.save() 에 category 를 담아줘야 합니다.
+
+rooms/views.py
+```py
+class Rooms(APIView):
+    def post(self, request):
+        if request.user.is_authenticated:
+            serializer = RoomDetailSerializer(data=request.data)
+            if serializer.is_valid():
+                # category : 1 데이터를 category_pk 에 담아줍니다.
+                category_pk = request.data.get("category")
+                if not category_pk:
+                    raise ParseError # 400 Bad Request
+                try:
+                    category = Category.objects.get(pk=category_pk)
+                    if category.kind == Category.CategoryKindChoices.EXPERIENCES: # 카테고리가 experience 인지 room 인지 체크
+                        raise ParseError # 400 Bad Request
+                except Category.DoesNotExist:
+                    raise ParseError
+                room = serializer.save(
+                    owner=request.user,
+                    category=category,
+                )
+                serializer = RoomDetailSerializer(room)
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors)
+        else:
+            raise NotAuthenticated
+```
+
+POST /api/v1/rooms/
+```json
+{
+    "name": "House created with DRF",
+    "country": "한국",
+    "city": "서울",
+    "price":321,
+    "rooms" : 1,
+    "toilets": 2,
+    "description": "test",
+    "address" : "테스트주소",
+    "pet_friendly" : true,
+    "kind" : "private_room",
+    "category" : 2
+}
+```
+
+응답
+```json
+HTTP 200 OK
+Allow: GET, POST, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+{
+    "id": 3,
+    "owner": {
+        "name": "",
+        "avatar": null,
+        "username": "hwisaac"
+    },
+    "amenities": [],
+    "category": {
+        "name": "카테22",
+        "kind": "rooms"
+    },
+    "created_at": "2023-08-12T14:26:34.825987+09:00",
+    "updated_at": "2023-08-12T14:26:34.826010+09:00",
+    "name": "House created with DRF",
+    "country": "한국",
+    "city": "서울",
+    "price": 321,
+    "rooms": 1,
+    "toilets": 2,
+    "description": "test",
+    "address": "테스트주소",
+    "pet_friendly": true,
+    "kind": "private_room"
+}
+```
+
+### room 생성시 amenities 배열에 대한 입력을 받아서 relation 주기
+
 
 <hr />
 
