@@ -1681,6 +1681,66 @@ Vary: Accept
 ```
 <hr />
 
+## Transaction
+https://docs.djangoproject.com/en/4.2/topics/db/transactions/
+
+- 쿼리에 여러가지 요청이 있다고 합시다 : 방을 생성하고, amenities 를 추가하기. 
+- 그런데 문제가 있는 쿼리가 있다면 모두가 작동하거나, 모두가 작동하지 않기를 원할 수 있습니다. (부분적으로 작동하는기능을 원하지 않음)
+- Transaction 은 성공/실패로 나뉘어 성공하지 못했다면 전체 코드와 그 변화를 되돌립니다.
+
+> django 의 쿼리마다 즉각적으로 db 를 수정하기 때문에 중간에 오류가 나면 오류가 나기 직전까지 쿼리는 유효하게 됩니다. 
+> transaction 을 사용하면 코드 조각을 만들어서 많은 쿼리와 create 들을 정의한 뒤에 그 중 하나라도 실패하게 되면 모든 쿼리를 실패로 간주하고 되돌려줍니다.
+
+
+1. `transaction` 을 import 합니다.
+2. `with transaction.atomic():` 블럭을 사용합니다.
+3. 장고는 이 블럭에서 작동하는 쿼리를 db 에 즉시 반영하지 않습니다.
+4. try-catch 문은 이 블럭내에서 사용하면 안됩니다. 그래야 transaction 이 에러요소를 감지 할수 있습니다.
+5. try-catch 문은 transaction 블럭을 감싸서 에러처리를 해줍시다.
+
+rooms/views.py
+```py
+from django.db import transaction
+
+class Rooms(APIView):
+    def get(self, request):
+        all_rooms = Room.objects.all()
+        serializer = RoomListSerializer(all_rooms, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        if request.user.is_authenticated:
+            serializer = RoomDetailSerializer(data=request.data)
+            if serializer.is_valid():
+                category_pk = request.data.get("category")
+                if not category_pk:
+                    raise ParseError("Category is required.") # 400 Bad Request
+                try:
+                    category = Category.objects.get(pk=category_pk)
+                    if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                        raise ParseError("The category kind should be 'rooms'") # 400 Bad Request
+                except Category.DoesNotExist:
+                    raise ParseError("Category not found") # 400 Bad Request
+                try:
+                    with transaction.atomic():
+                        room = serializer.save(
+                            owner=request.user,
+                            category=category,
+                        )
+                        amenities = request.data.get("amenities")
+                        for amenity_pk in amenities:
+                            amenity = Amenity.objects.get(pk=amenity_pk)
+                            room.amenities.add(amenity)
+                        serializer = RoomDetailSerializer(room)
+                        return Response(serializer.data)
+                except Exception:
+                    raise ParseError("Amenity not found")
+            else:
+                return Response(serializer.errors)
+        else:
+            raise NotAuthenticated
+```
+
 # Users API
 
 <hr />
