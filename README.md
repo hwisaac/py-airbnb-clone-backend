@@ -1309,9 +1309,16 @@ class AmenitySerializer(ModelSerializer):
 
 # depth
 class RoomDetailSerializer(ModelSerializer):
-    owner = TinyUserSerializer() # owner 를 가져올때 TinyUserSerializer 를 이용하라
-    amenities = AmenitySerializer(many=True)
-    category = CategorySerializer()
+    # '읽기전용'은 room 데이터를 수정하지 못하게하므로, 해당 필드에 대한 정보를 PUT/POST 요청으로 요구하진 않습니다.
+
+    owner = TinyUserSerializer(read_only=True) # owner 를 가져올때 TinyUserSerializer 를 이용하라. 
+    amenities = AmenitySerializer(
+        read_only=True,
+        many=True,
+    )
+    category = CategorySerializer(
+        read_only=True,
+    )
 
     class Meta:
         model = Room
@@ -1385,6 +1392,35 @@ Vary: Accept
 }
 ```
 
+## 에러: create() method does not support writable nested fields by default.
+
+> many-to-many 필드나, foreign key 에 해당하는 필드에 관한 정보도 함께 POST 하더라도, 해당 데이터들은 DB 에 저장이 될 수 없기 때문에 나오는 에러입니다.
+
+- 해당 필드를 `read_only=True` 
+- `.save()` 메서드가 호출될 때, `owner=request.user` 의 정보를 같이 넘겨줍니다.
+
+rooms/views.py
+```py
+from rest_framework.exceptions import NotFound, NotAuthenticated
+
+class Rooms(APIView):
+    def get(self, request):
+        all_rooms = Room.objects.all()
+        serializer = RoomListSerializer(all_rooms, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            serializer = RoomDetailSerializer(data=request.data)
+            if serializer.is_valid():
+                room = serializer.save(owner=request.user)
+                serializer = RoomDetailSerializer(room)
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors)
+        else:
+            raise NotAuthenticated
+```
 
 <hr />
 

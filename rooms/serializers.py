@@ -15,9 +15,14 @@ class AmenitySerializer(ModelSerializer):
 
 class RoomDetailSerializer(ModelSerializer):
 
-    owner = TinyUserSerializer() # owner 를 가져올때 TinyUserSerializer 를 이용하라
-    amenities = AmenitySerializer(many=True)
-    category = CategorySerializer()
+    owner = TinyUserSerializer(read_only=True) # owner 를 가져올때 TinyUserSerializer 를 이용하라
+    amenities = AmenitySerializer(
+        read_only=True,
+        many=True,
+    )
+    category = CategorySerializer(
+        read_only=True,
+    )
     class Meta:
         model = Room
         fields = "__all__"
