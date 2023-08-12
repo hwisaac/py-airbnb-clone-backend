@@ -79,6 +79,14 @@ class Rooms(APIView):
                     owner=request.user,
                     category=category,
                 )
+                amenities = request.data.get("amenities")
+                for amenity_pk in amenities:
+                    try:
+                        amenity = Amenity.objects.get(pk=amenity_pk)
+                    except Amenity.DoesNotExist:
+                        room.delete()
+                        raise ParseError(f"Amenity with id {amenity_pk} not found")
+                    room.amenities.add(amenity) # 있으면 추가
                 serializer = RoomDetailSerializer(room)
                 return Response(serializer.data)
             else:

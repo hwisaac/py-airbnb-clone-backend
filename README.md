@@ -1567,9 +1567,118 @@ Vary: Accept
 }
 ```
 
-### room 생성시 amenities 배열에 대한 입력을 받아서 relation 주기
+### room 생성시 (Many to Many)amenities 배열에 대한 입력을 받아서 relation 주기
 
+- amenities 데이터가 없어도 room 이 생성되어야 합니다. (유저가 나중에 추가할 수 있도록)
+- amenities 배열의 값들마다 유효성 검사를 해줍니다.(실제로 존재하는 amenity 인지)
+- amenities 와 같은 many to many 필드는 `room.amenities.add()` 를 통해 데이터를 추가합니다.
 
+rooms/views.py
+```py
+class Rooms(APIView):
+    def post(self, request):
+        if request.user.is_authenticated:
+            serializer = RoomDetailSerializer(data=request.data)
+            if serializer.is_valid():
+                category_pk = request.data.get("category")
+                if not category_pk:
+                    raise ParseError("Category is required.") # 400 Bad Request
+                try:
+                    category = Category.objects.get(pk=category_pk)
+                    if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                        raise ParseError("The category kind should be 'rooms'") # 400 Bad Request
+                except Category.DoesNotExist:
+                    raise ParseError("Category not found") # 400 Bad Request
+                room = serializer.save(
+                    owner=request.user,
+                    category=category,
+                )
+                amenities = request.data.get("amenities")
+                for amenity_pk in amenities: # 각 pk 마다 유효성검사
+                    try:
+                        amenity = Amenity.objects.get(pk=amenity_pk)
+                    except Amenity.DoesNotExist:
+                        room.delete()
+                        raise ParseError(f"Amenity with id {amenity_pk} not found")
+                    room.amenities.add(amenity)
+                serializer = RoomDetailSerializer(room)
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors)
+        else:
+            raise NotAuthenticated
+
+```
+
+테스트
+POST /api/v1/rooms/
+```json
+{
+    "name": "House created with DRF 22",
+    "country": "한국",
+    "city": "서울",
+    "price": 4444,
+    "rooms" : 1,
+    "toilets": 2,
+    "description": "test",
+    "address" : "테스트주소",
+    "pet_friendly" : true,
+    "kind" : "private_room",
+    "category" : 2,
+    "amenities" : [1,2,3,4]
+}
+```
+
+응답
+```json
+HTTP 200 OK
+Allow: GET, POST, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+{
+    "id": 5,
+    "owner": {
+        "name": "",
+        "avatar": null,
+        "username": "hwisaac"
+    },
+    "amenities": [
+        {
+            "name": "amenity1",
+            "description": "amenity1 설명"
+        },
+        {
+            "name": "2shower",
+            "description": "amenity2"
+        },
+        {
+            "name": "door",
+            "description": "amenity3"
+        },
+        {
+            "name": "amenityyyyyyyy",
+            "description": "4번째"
+        }
+    ],
+    "category": {
+        "name": "카테22",
+        "kind": "rooms"
+    },
+    "created_at": "2023-08-12T15:00:27.135944+09:00",
+    "updated_at": "2023-08-12T15:00:27.136003+09:00",
+    "name": "House created with DRF 444",
+    "country": "한국",
+    "city": "서울",
+    "price": 444,
+    "rooms": 1,
+    "toilets": 2,
+    "description": "test",
+    "address": "테스트주소",
+    "pet_friendly": true,
+    "kind": "private_room"
+}
+```
 <hr />
 
 # Users API
