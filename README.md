@@ -1875,6 +1875,37 @@ Vary: Accept
     }
 ]
 ```
+
+## Context
+> context 는 serializer 에 외부 세계에 대한 정보를 보내야 할 때 유용합니다.
+
+- serializer 를 초기화 할때, `context = {}` 를 인자로 전달하면 됩니다.
+
+> `RoomDetail` 의 `get` 요청 핸들러에서 `context` 를 전달하고 ,  `is_owner` 필드 데이터를 받아올 때 해당 `self.context` 로 `context` 를 사용해보기 예시: 
+
+rooms/views.py
+```py
+class RoomDetail(APIView):
+    def get(self, request, pk):
+        room = self.get_object(pk)
+        serializer = RoomDetailSerializer(
+            room,
+            context={"request": request},
+        )
+        return Response(serializer.data)
+```
+
+rooms/serializers.py
+```py
+class RoomDetailSerializer(serializers.ModelSerializer):
+    ...
+    is_owner = serializers.SerializerMethodField()
+
+    def get_is_owner(self, room):
+        request = self.context["request"]
+        return room.owner == request.user
+```
+
 # Users API
 
 <hr />
