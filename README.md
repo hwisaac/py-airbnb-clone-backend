@@ -407,9 +407,9 @@ INSTALLED_APPS = [
 ]
 ```
 
-생성한 apps 폴더의 `models.py` 에서 모델 및 필드 정의하기 (`__str__`, F oreignKey 등)
-생성한 apps 폴더의 `admin.py` 에서 관리자 패널에 대해 정의하기
-`python manage.py makemigrations` , `python manage.py migrate` 키워드로 동기화시키기
+- 생성한 apps 폴더의 `models.py` 에서 모델 및 필드 정의하기 (`__str__`, F oreignKey 등)
+- 생성한 apps 폴더의 `admin.py` 에서 관리자 패널에 대해 정의하기
+- `python manage.py makemigrations` , `python manage.py migrate` 키워드로 동기화시키기
 
 
 
@@ -493,7 +493,7 @@ Select an option:
 ```
 - non-nullable 필드인 `is_host` 필드에 default value 없이 모델에 추가하는 것은 불가능합니다.(데이터베이스는 기존 rows 에 입력 시킬 데이터가 필요하기 때문. 이미 생성해둔 슈퍼유저가 `is_host=null` 인 데이터를 가지기 때문 )
     1. 해결1: 지금 1회성 디폴트값을 제공한다
-    2. 해결2: 직접 models.py 파일에 default value 를 정의해준다.
+    2. 해결2: 직접 `models.py` 파일에 default value 를 정의해준다.
     3. 해결3: nullable 이도록 `is_host = models.BooleanField(null=True)` 로 수정합니다.
 
 <hr />
@@ -530,7 +530,7 @@ https://docs.djangoproject.com/en/4.2/topics/db/queries/
 
 ### query set
 
-> `Room.objects.all()` 호출 시 단순히 배열이 아닌 <QuerySet > 를 리턴 받는데, query set은 연산자를 함꼐 묶어주는 일을 한다. 
+> `Room.objects.all()` 호출 시 단순히 배열이 아닌 `<QuerySet >` 를 리턴 받는데, query set은 연산자를 함께 묶어주는 일을 합니다. 
 
 `Room.objects.filter(pet_friendly=True).exclude(price__lt=15)`
 
@@ -1022,6 +1022,8 @@ def categories(request):
             return Response(serializer.errors)
 
 # 변경후
+from rest_framework.views import APIView
+
 class Categories(APIView):
     def get(self, request):
         all_categories = Category.objects.all()
@@ -1904,6 +1906,82 @@ class RoomDetailSerializer(serializers.ModelSerializer):
     def get_is_owner(self, room):
         request = self.context["request"]
         return room.owner == request.user
+```
+
+## reverse serializer
+
+> Remark: 만약 모델 A 가 다른 모델 B에 대한 FK(Foreign Key)를 가지면 A는 B의 데이터에 쉽게 접근할 수 있습니다. 그리고 동시에 B 는 A_set 이라는 역접근자(reverse accessor) 를 갖게 됩니다. B.A_set 은 B를 FK 로 하는 모든 A의 모임입니다.
+
+하나의 방에 만들어진 모든 리뷰를 보여주기 (비추천 방식입니다. 너무 많은 데이터를 가져와야 합니다.)
+
+reviews/serializers.py
+```py
+from rest_framework import serializers
+from .models import Review
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = "__all__"
+```
+
+rooms/serializers.py
+```py
+from reviews.serializers import ReviewSerializer
+
+class RoomDetailSerializer(serializers.ModelSerializer):
+    ...
+    reviews = ReviewSerializer(
+        many=True,
+        read_only=True,
+    )
+```
+
+> NOTE: 역접근자를 사용하면 때론 너무 많은 정보를 가져오기 때문에 주의해야 합니다!
+## pagination
+
+> 리뷰들을 가지고 온다고 해서 항상 모든 데이터가 필요하진 않습니다. 페이지네이션을 하면 일부만 가져올 수 있습니다.
+
+> `room.reviews.all()[0:3]` 이 쿼리는 인덱스 0부터 2까지 가져옵니다. (모든 데이터를 가져오지 않고 일부분만 가져오기 때문에 성능이 우수합니다.)
+
+예시 : GET /rooms/1/reviews?page=1
+
+> `request.query_params` 를 통해 QueryDict 딕셔너리 데이터에 접근할 수 있습니다.
+
+rooms/urls.py
+```py
+urlpatterns = [
+    path("<int:pk>/reviews", views.RoomReviews.as_view()),
+]
+```
+
+rooms/views.py
+```py
+from reviews.serializers import ReviewSerializer
+
+class RoomReviews(APIView):
+    def get_object(self, pk):
+        try:
+            return Room.objects.get(pk=pk)
+        except Room.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        try:
+            page = request.query_params.get("page", 1) # 디폴트값은 1
+            page = int(page)
+        except ValueError:
+            page = 1
+        page_size = 3
+        start = (page - 1) * page_size
+        end = start + page_size
+        room = self.get_object(pk)
+        serializer = ReviewSerializer(
+            room.reviews.all()[start:end],
+            many=True,
+        )
+        return Response(serializer.data)
 ```
 
 # Users API
