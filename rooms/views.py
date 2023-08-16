@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework.views import APIView
 from django.db import transaction
 from rest_framework.status import HTTP_204_NO_CONTENT
@@ -151,7 +152,7 @@ class RoomReviews(APIView):
             page = int(page)
         except ValueError:
             page = 1
-        page_size = 3
+        page_size = settings.PAGE_SIZE
         start = (page - 1) * page_size
         end = start + page_size
         room = self.get_object(pk)
@@ -160,3 +161,7 @@ class RoomReviews(APIView):
             many=True,
         )
         return Response(serializer.data)
+    
+class RoomPhotos(APIView):
+    def post(self, request, pk):
+        pass

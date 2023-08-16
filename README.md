@@ -1984,6 +1984,58 @@ class RoomReviews(APIView):
         return Response(serializer.data)
 ```
 
+## File Upload (during development)
+
+https://docs.djangoproject.com/en/4.2/howto/static-files/#serving-static-files-during-development (개발환경 전용)
+
+다음 전역변수들을 추가:
+
+config/settings.py
+```py
+...
+
+MEDIA_ROOT = "uploads" # 업로드된 파일이 저장되는 폴더명
+
+MEDIA_URL = "user-uploads/" # 사람들이 서버 파일에 접근하는 url 주소
+```
+
+
+- 다음과 같이 `user-uploads/` 경로를 노출시켜줍니다.
+
+config/urls.py
+```py
+from django.conf.urls.static import static
+from django.conf import settings
+
+urlpatterns = [
+    ...
+
+    # "user-uploads/" (URL과), 정적파일이 저장된 폴더명 "uploads" 를 인자로 넣어줍니다.
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # 추가
+```
+
+rooms/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    ...
+    path("<int:pk>/photos", views.RoomPhotos.as_view()),
+]
+```
+
+rooms/views.py
+```py
+...
+
+class RoomPhotos(APIView):
+    def post(self, request, pk):
+        pass
+```
+
+
+
 # Users API
 
 <hr />
