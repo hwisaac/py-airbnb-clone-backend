@@ -2034,6 +2034,67 @@ class RoomPhotos(APIView):
         pass
 ```
 
+## 안전하게 파일 업로드 하기 
+> 이렇게 하면 보안적으로 매우 취약합니다. (유저가 code 가 있는 디렉토리에 있는 uploads 폴더에 파일을 마음대로 올릴 수 있기 때문) 
+ 
+- 파일들을 다른 서버에 업로드 하게 하는 것이 좋습니다! 
+- 파일을 호스팅하는 서비스에 파일을 넣고 쟝고에 URL을 제공합니다. 
+- 유저가 요ㅊ청을 보내면 유효성 검사를 위해 serializer를 통해 유저 데이터를 넣을 수 있습니다.
+DB 에는 file 필드가 아닌 URL 필드만 저장합니다.
+
+medias/models.py
+```py
+class Photo(CommonModel):
+    file = models.URLField() # 변경전 models.ImageField()
+    ...
+
+class Video(CommonModel):
+    file = models.URLField() # 변경전 models.FileField()
+    ...
+```
+
+medias/serializers.py
+```py
+from rest_framework.serializers import ModelSerializer
+from .models import Photo
+
+class PhotoSerializer(ModelSerializer):
+    class Meta:
+        model = Photo
+        fields = (
+            "pk", # pk 는 read-only 가 디폴트
+            "file",
+            "description",
+        )
+```
+
+rooms/views.py
+```py
+from medias.serializers import PhotoSerializer
+
+class RoomPhotos(APIView):
+    def get_object(self, pk):
+        try:
+            return Room.objects.get(pk=pk)
+        except Room.DoesNotExist:
+            raise NotFound
+
+    def post(self, request, pk):
+        room = self.get_object(pk)
+        if not request.user.is_authenticated:
+            raise NotAuthenticated 
+        if request.user != room.owner:
+            raise PermissionDenied
+        serializer = PhotoSerializer(data=request.data)
+        if serializer.is_valid():
+            photo = serializer.save(room=room)
+            serializer = PhotoSerializer(photo)
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors)
+```
+
+
 
 
 # Users API
@@ -2049,3 +2110,14 @@ class RoomPhotos(APIView):
 <hr />
 
 # API Testing
+
+{
+  "text": "In the first century BC, Diodorus Siculus wrote that the whole of Arabia exhaled an unearthly fragrance and Agatharchides, a second-century BC Greek historian and geographer, wrote that 'the quality of perfume excites the senses in a manner which is quite divine'. ",
+  "direction": "en2ko",
+  "split_line": true,
+	"gen_kwargs": {
+		"num_return_sequences": 4,
+		"do_sample":false,
+		"top_p" : 0.95
+	}
+}
