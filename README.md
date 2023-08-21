@@ -2094,6 +2094,55 @@ class RoomPhotos(APIView):
             return Response(serializer.errors)
 ```
 
+## permission_classes
+
+
+
+### 삭제 URL 에 대해
+`DELETE /rooms/1/photos/1` 이런 HTTP 요청은 이상합니다.
+- 사진을 삭제하기 위해 방의 id 가 꼭 필요하진 않습니다.
+
+> `DELETE /api/v1/medias/photos/1` 로 삭제하기
+
+medias/urls.py
+```py
+from django.urls import path
+from .views import PhotoDetail
+
+urlpatterns = [
+    path("photos/<int:pk>", PhotoDetail.as_view()),
+]
+```
+
+medias/views.py
+```py
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_200_OK
+from rest_framework.response import Response
+from rest_framework.exceptions import NotFound, PermissionDenied
+from .models import Photo
+
+
+class PhotoDetail(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Photo.objects.get(pk=pk)
+        except Photo.DoesNotExist:
+            raise NotFound
+
+    def delete(self, request, pk):
+        photo = self.get_object(pk)
+        if (photo.room and photo.room.owner != request.user) or (
+            photo.experience and photo.experience.host != request.user
+        ):
+            raise PermissionDenied
+        photo.delete()
+        return Response(status=HTTP_200_OK)
+```
 
 
 
