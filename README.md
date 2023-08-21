@@ -2208,6 +2208,28 @@ class PhotoDetail(APIView):
         return Response(status=HTTP_200_OK)
 ```
 
+## is_liked
+
+> filter 할 때 로대쉬 두번(`__`)
+
+- user가 만든 wishlist 중 room id 가 있는 room list를 포함한 wishlist 를 찾고, pk 가 room.pk 랑 일치하는 그 room 을 찾는다.
+
+```py
+from rest_framework import serializers
+from wishlists.models import Wishlist
+
+class RoomDetailSerializer(serializers.ModelSerializer):
+    ...
+    is_liked = serializers.SerializerMethodField()
+
+    def get_is_liked(self, room):
+        request = self.context["request"]
+        return Wishlist.objects.filter(
+            user=request.user,
+            rooms__pk=room.pk,
+        ).exists()
+```
+
 
 
 # Users API
