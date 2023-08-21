@@ -2230,9 +2230,89 @@ class RoomDetailSerializer(serializers.ModelSerializer):
         ).exists()
 ```
 
+## field 의 validation 을 커스텀하기: `validate_필드명`
 
+
+```py
+from django.utils import timezone
+from rest_framework import serializers
+from .models import Booking
+
+
+class CreateRoomBookingSerializer(serializers.ModelSerializer):
+
+    check_in = serializers.DateField()
+    check_out = serializers.DateField()
+
+    class Meta:
+        model = Booking
+        fields = (
+            "check_in",
+            "check_out",
+            "guests",
+        )
+
+    def validate_check_in(self, value):
+        now = timezone.localtime(timezone.now()).date()
+        if now > value:
+            raise serializers.ValidationError("Can't book in the past!")
+        return value
+
+    def validate_check_out(self, value):
+        now = timezone.localtime(timezone.now()).date()
+        if now > value:
+            raise serializers.ValidationError("Can't book in the past!")
+        return value
+    
+    def validate(self, data):
+        if data["check_out"] <= data["check_in"]:
+            raise serializers.ValidationError(
+                "Check in should be smaller than check out."
+            )
+        if Booking.objects.filter(
+            check_in__lte=data["check_out"],
+            check_out__gte=data["check_in"],
+        ).exists():
+            raise serializers.ValidationError(
+                "Those (or some) of those dates are already taken."
+            )
+        return data
+```
+
+이 코드는 Django Rest Framework(DRF)를 사용하여 `Booking` 모델에 대한 시리얼라이저를 정의하고 있습니다. 
+
+1. **Field Level Validation**:
+    - DRF에서는 각 필드에 대한 유효성 검사를 `validate_<field_name>` 형태의 메서드로 진행할 수 있습니다.
+    
+    - `validate_check_in`:
+        - 이 함수는 `check_in` 필드의 값을 검사합니다.
+        - 현재 날짜보다 과거의 날짜로 예약을 시도하면 에러 메시지를 반환합니다.
+
+    - `validate_check_out`:
+        - 이 함수는 `check_out` 필드의 값을 검사합니다.
+        - 마찬가지로, 현재 날짜보다 과거의 날짜로 체크아웃을 시도하면 에러 메시지를 반환합니다.
+
+2. **Object Level Validation**:
+    - `validate` 메서드를 사용하면 **모든 전체 데이터** 객체에 대한 유효성 검사를 진행할 수 있습니다.
+
+    - 체크인 날짜와 체크아웃 날짜의 비교:
+        - 체크인 날짜가 체크아웃 날짜보다 같거나 더 큰 경우 에러 메시지를 반환합니다. 이는 체크인이 체크아웃보다 빨라야 한다는 비즈니스 로직을 나타냅니다.
+
+    - 기존 예약과의 충돌 확인:
+        - 이미 예약된 날짜와 새로운 예약의 날짜가 겹치는지 확인합니다.
+        - 만약 겹치는 경우, 에러 메시지를 반환합니다.
+
+위의 유효성 검사 메서드들은 유효하지 않은 데이터가 시스템에 저장되는 것을 방지하기 위해 사용됩니다. 이러한 검증 로직은 시스템의 데이터 무결성을 유지하고, 예약과 관련된 오류나 문제를 미리 방지하는 중요한 역할을 합니다.
 
 # Users API
+GET PUT /api/v1/users/me
+POST /api/v1/users
+POST /api/v1/users/log-in
+POST /api/v1/users/change-password
+
+> password 나 Authentication 등을 다뤄봅시다
+
+
 
 <hr />
 
