@@ -11,11 +11,11 @@ from rest_framework.exceptions import (
 )
 from .models import Amenity, Room
 from categories.models import Category
-from .models import Amenity, Room
 from .serializers import AmenitySerializer, RoomListSerializer, RoomDetailSerializer
 from reviews.serializers import ReviewSerializer
 from medias.serializers import PhotoSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
 
 class Amenities(APIView):
     def get(self, request):
@@ -24,12 +24,12 @@ class Amenities(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = AmenitySerializer(data=request.data) # 초기화
+        serializer = AmenitySerializer(data=request.data)
         if serializer.is_valid():
-            amenity = serializer.save() # 객체 생성&db저장&저장객체 반환
+            amenity = serializer.save()
             return Response(
                 AmenitySerializer(amenity).data,
-            ) # 저장객체를 다시 직렬화하고 응답함
+            )
         else:
             return Response(serializer.errors)
 
@@ -66,9 +66,8 @@ class AmenityDetail(APIView):
         amenity.delete()
         return Response(status=HTTP_204_NO_CONTENT)
 
+
 class Rooms(APIView):
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    
     def get(self, request):
         all_rooms = Room.objects.all()
         serializer = RoomListSerializer(
@@ -77,7 +76,7 @@ class Rooms(APIView):
             context={"request": request},
         )
         return Response(serializer.data)
-    
+
     def post(self, request):
         serializer = RoomDetailSerializer(data=request.data)
         if serializer.is_valid():
@@ -109,6 +108,7 @@ class Rooms(APIView):
 
 
 class RoomDetail(APIView):
+
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_object(self, pk):
@@ -124,25 +124,25 @@ class RoomDetail(APIView):
             context={"request": request},
         )
         return Response(serializer.data)
-    
+
     def put(self, request, pk):
         room = self.get_object(pk)
-        if not request.user.is_authenticated:
-            raise NotAuthenticated
         if room.owner != request.user:
             raise PermissionDenied
         # your magic
 
     def delete(self, request, pk):
         room = self.get_object(pk)
-        if not request.user.is_authenticated:
-            raise NotAuthenticated
         if room.owner != request.user:
             raise PermissionDenied
         room.delete()
         return Response(status=HTTP_204_NO_CONTENT)
-    
+
+
 class RoomReviews(APIView):
+
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get_object(self, pk):
         try:
             return Room.objects.get(pk=pk)
@@ -164,10 +164,22 @@ class RoomReviews(APIView):
             many=True,
         )
         return Response(serializer.data)
-    
+
+    def post(self, request, pk):
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            review = serializer.save(
+                user=request.user,
+                room=self.get_object(pk),
+            )
+            serializer = ReviewSerializer(review)
+            return Response(serializer.data)
+
+
 class RoomPhotos(APIView):
+
     permission_classes = [IsAuthenticatedOrReadOnly]
-    
+
     def get_object(self, pk):
         try:
             return Room.objects.get(pk=pk)
@@ -176,8 +188,6 @@ class RoomPhotos(APIView):
 
     def post(self, request, pk):
         room = self.get_object(pk)
-        if not request.user.is_authenticated:
-            raise NotAuthenticated
         if request.user != room.owner:
             raise PermissionDenied
         serializer = PhotoSerializer(data=request.data)
