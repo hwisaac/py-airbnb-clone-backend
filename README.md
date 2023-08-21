@@ -2096,7 +2096,71 @@ class RoomPhotos(APIView):
 
 ## permission_classes
 
+> `permission_classes` 를 사용하면, APIView 의 속성을 변경할 수 있습니다.
 
+medias/views.py
+```py
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_200_OK
+from rest_framework.response import Response
+from rest_framework.exceptions import NotFound, PermissionDenied
+from .models import Photo
+
+class PhotoDetail(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Photo.objects.get(pk=pk)
+        except Photo.DoesNotExist:
+            raise NotFound
+
+    def delete(self, request, pk):
+        photo = self.get_object(pk)
+        if (photo.room and photo.room.owner != request.user) or (
+            photo.experience and photo.experience.host != request.user
+        ):
+            raise PermissionDenied
+        photo.delete()
+        return Response(status=HTTP_200_OK)
+```
+
+rooms/views.py
+```py
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
+class RoomDetail(APIView):
+    # 수정할 때는 인증한 사람만 가능. GET 은 누구나 가능
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    def get_object(self, pk):
+        try:
+            return Room.objects.get(pk=pk)
+        except Room.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        room = self.get_object(pk)
+        serializer = RoomDetailSerializer(
+            room,
+            context={"request": request},
+        )
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        room = self.get_object(pk)
+        if room.owner != request.user:
+            raise PermissionDenied
+        # your magic
+
+    def delete(self, request, pk):
+        room = self.get_object(pk)
+        if room.owner != request.user:
+            raise PermissionDenied
+        room.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+```
 
 ### 삭제 URL 에 대해
 `DELETE /rooms/1/photos/1` 이런 HTTP 요청은 이상합니다.
