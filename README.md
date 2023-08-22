@@ -2305,14 +2305,180 @@ class CreateRoomBookingSerializer(serializers.ModelSerializer):
 위의 유효성 검사 메서드들은 유효하지 않은 데이터가 시스템에 저장되는 것을 방지하기 위해 사용됩니다. 이러한 검증 로직은 시스템의 데이터 무결성을 유지하고, 예약과 관련된 오류나 문제를 미리 방지하는 중요한 역할을 합니다.
 
 # Users API
-GET PUT /api/v1/users/me
-POST /api/v1/users
-POST /api/v1/users/log-in
-POST /api/v1/users/change-password
+GET PUT /api/v1/users/me : 프라이빗하게 프로필을 볼 경우
+GET PUT /api/v1/users/username : 퍼블릭하게 프로필을 공개 할 경우
+POST /api/v1/users : 회원가입
+POST /api/v1/users/log-in : 로그인
+POST /api/v1/users/change-password : 비밀번호 바꾸기
 
 > password 나 Authentication 등을 다뤄봅시다
 
+## 개인 프로필 가져오기 (users/me)
 
+users/views.py
+```py
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from . import serializers
+
+
+class Me(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = serializers.PrivateUserSerializer(user)
+        return Response(serializer.data)
+
+    def put(self, request):
+        user = request.user
+        serializer = serializers.PrivateUserSerializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
+        if serializer.is_valid():
+            user = serializer.save()
+            serializer = serializers.PrivateUserSerializer(user)
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors)
+```
+
+users/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("me", views.Me.as_view()),
+]
+```
+
+users/serializers.py
+```py
+from rest_framework.serializers import ModelSerializer
+from .models import User
+class TinyUserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "name",
+            "avatar",
+            "username",
+        )
+
+
+class PrivateUserSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ( # 아래 데이터는 응답에 포함시키지 않는다
+            "password",
+            "is_superuser",
+            "id",
+            "is_staff",
+            "is_active",
+            "first_name",
+            "last_name",
+            "groups",
+            "user_permissions",
+        )
+```
+
+users/models.py
+```py
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+class User(AbstractUser):
+    class GenderChoices(models.TextChoices):
+        MALE = ("male", "Male")
+        FEMALE = ("female", "Female")
+    class LanguageChoices(models.TextChoices):
+        KR = ("kr", "Korean")
+        EN = ("en", "English")
+    class CurrencyChoices(models.TextChoices):
+        WON = "won", "Korean Won"
+        USD = "usd", "Dollar"
+    first_name = models.CharField(
+        max_length=150,
+        editable=False,
+    )
+    last_name = models.CharField(
+        max_length=150,
+        editable=False,
+    )
+    avatar = models.URLField(blank=True)
+    name = models.CharField(
+        max_length=150,
+        default="",
+    )
+    is_host = models.BooleanField(default=False)
+    gender = models.CharField(
+        max_length=10,
+        choices=GenderChoices.choices,
+    )
+    language = models.CharField(
+        max_length=2,
+        choices=LanguageChoices.choices,
+    )
+    currency = models.CharField(
+        max_length=5,
+        choices=CurrencyChoices.choices,
+        
+    )
+```
+
+GET api/v1/users/me
+```json
+HTTP 200 OK
+Allow: GET, PUT, HEAD, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+{
+    "last_login": "2023-08-21T18:22:20.144684+09:00",
+    "username": "admin",
+    "email": "admin@admin.com",
+    "date_joined": "2023-08-21T18:21:58.044021+09:00",
+    "avatar": "",
+    "name": "",
+    "is_host": false,
+    "gender": "",
+    "language": "",
+    "currency": ""
+}
+```
+
+## 유저 생성하기 
+
+django 와 DRF는 user가 존재하는지 유일성 체크도 해줍니다 (model serializer 덕분)
+
+> 유저 모델을 생성하기는 기존 하던 방식과 동일합니다. 그런데 패스워드를 입력받아서 회원가입을 해야 하면 어떻게 해야 될까요?
+
+password 스트링을 서버에서 받으면, hash 처리하고 그 것을 DB에 저장합니다. 장고는 알아서 모든 complexity(복잡성)을 숨겨줍니다.
+
+users/views.py
+```py
+class Users(APIView):
+    def post(self, request):
+        password = request.data.get("password")
+        # password 유효성 검사 
+        if not password:
+            raise ParseError
+        serializer = serializers.PrivateUserSerializer(data=request.data)
+        # password 저장 
+        if serializer.is_valid():
+            user = serializer.save()
+            user.set_password(password) # 해싱한 password을 저장한다
+            user.save()
+            serializer = serializers.PrivateUserSerializer(user)
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors) 
+```
 
 <hr />
 
