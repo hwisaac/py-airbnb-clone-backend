@@ -2826,6 +2826,92 @@ class UserType:
 
 ![](readMeImages/2023-08-25-15-43-30.png)
 
+## Custom Resolvers
+
+- `nullable` 타입은 어떻게 만들까요? -> `typing.Optional`
+- 에러는 어떻게 핸들링 할까요? -> `try-except` 문법을 사용합니다.
+
+rooms/types.py
+```py
+from django.conf import settings
+import strawberry
+import typing
+from . import models
+from reviews.types import ReviewType
+
+@strawberry.django.type(models.Room)
+class RoomType:
+    ...
+
+    @strawberry.field
+    def reviews(self, page: typing.Optional[int] = 1) -> typing.List["ReviewType"]:
+        # type.Optional 은 nullable 로 바꿔줍니다. null 인 경우 디폴트 값 1을 설정합니다.
+        page_size = settings.PAGE_SIZE
+        start = (page - 1) * page_size
+        end = start + page_size
+        return self.reviews.all()[start:end]
+
+    ...
+```
+
+rooms/schema.py
+```py
+import strawberry
+import typing
+from . import types
+from . import queries
+
+
+@strawberry.type
+class Query:
+    all_rooms: typing.List[types.RoomType] = strawberry.field(
+        resolver=queries.get_all_rooms,
+    )
+    # room 은 nullable
+    room: typing.Optional[types.RoomType] = strawberry.field(
+        resolver=queries.get_room, # resolver 는 try-catch 문으로 에러핸들링
+    )
+```
+
+
+
+rooms/queries.py
+```py
+def get_room(pk: int):
+    try:
+        return models.Room.objects.get(pk=pk)
+    except models.Room.DoesNotExist:
+        return None
+```
+
+### `info` 파라미터를 이용해서 dynamic field 만들어보기
+
+> `info` 파라미터는 현재 발생한 `request`에 대한 정보를 담고 있기 때문에 이를 사용하면, 사용자가 누구인지에 대한 정보를 가져오고 그에 맞춰 데이터를 리턴할 수 있습니다. 
+
+> 주의! `from strawberry.types import Info` 에서 주는 `Info` 타입을 반드시 명시해줘야 strawberry 가 info 오브젝트를 넣어줍니다.
+
+```py
+import strawberry
+from strawberry.types import Info
+from . import models
+from wishlists.models import Wishlist
+
+@strawberry.django.type(models.Room)
+class RoomType:
+    ...
+    
+    @strawberry.field
+    def is_owner(self, info: Info) -> bool:
+        return self.owner == info.context.request.user
+
+    @strawberry.field
+    def is_liked(self, info: Info) -> bool:
+        return Wishlist.objects.filter(
+            user=info.context.request.user,
+            rooms__pk=self.pk,
+        ).exists()
+```
+
 # API Testing
 
 {
