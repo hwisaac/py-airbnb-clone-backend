@@ -2778,7 +2778,36 @@ class Query:
 
 ![](readMeImages/2023-08-25-15-00-36.png)
 
+## type relationships
 
+rooms/types.py
+```py
+import strawberry
+from strawberry import auto
+from . import models
+from users.types import UserType # users 에서 UserType타입을 가져옵니다.
+
+@strawberry.django.type(models.Room)
+class RoomType:
+    id: auto
+    name: auto
+    kind: auto
+    owner: "UserType" # 문자열으로 적어야 합니다. (UserType 대신 "UserType")
+```
+
+users/types.py
+```py
+import strawberry
+from strawberry import auto
+from . import models
+
+
+@strawberry.django.type(models.User)
+class UserType:
+    name: auto
+    email: auto
+    username: auto
+```
 # API Testing
 
 {
