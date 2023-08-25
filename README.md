@@ -2674,11 +2674,40 @@ class Query:
         return movies_db
 
     @strawberry.field
-    def movie(self, movie_pk: int) -> Movie:
+    def movie(self, movie_pk: int) -> Movie: 
+        # movie_pk 를 strawberry 는 자동으로 카멜케이싱 해줍니다.
         return movies_db[movie_pk - 1]
 
 
 schema = strawberry.Schema(query=Query)
+```
+
+## mutation
+
+> query (`@strawberry.field`) 와 달리 mutation 은 `@strawberry.mutation` 을 사용합니다.
+ 
+ 
+config/schema.py
+```py
+@strawberry.type
+class Mutation:
+    @strawberry.mutation # mutation 일 경우
+    def add_movie(self, title: str, year: int, rating: int) -> Movie:
+        new_movie = Movie(
+            pk=len(movies_db) + 1,
+            title=title,
+            year=year,
+            rating=rating,
+        )
+        movies_db.append(new_movie)
+        return new_movie
+
+
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation, # mutation 을 추가해줍니다.
+)
+
 ```
 
 # API Testing
