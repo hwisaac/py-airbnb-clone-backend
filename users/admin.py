@@ -7,7 +7,7 @@ from .models import User
 class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (
-            "Profile",
+            "프로필",
             {
                 "fields": (
                     "avatar",
@@ -24,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
         (
-            "Permissions",
+            "권한에 대한 정보",
             {
                 "fields": (
                     "is_active",
@@ -37,7 +37,7 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
         (
-            "Important Dates",
+            "날짜 정보",
             {
                 "fields": ("last_login", "date_joined"),
                 "classes": ("collapse",),

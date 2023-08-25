@@ -69,7 +69,7 @@ class ChangePassword(APIView):
         new_password = request.data.get("new_password")
         if not old_password or not new_password:
             raise ParseError
-        if user.check_password(old_password):
+        if user.check_password(old_password): #해시된 pw 가 일치하는지 체크해줌
             user.set_password(new_password)
             user.save()
             return Response(status=status.HTTP_200_OK)

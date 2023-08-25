@@ -2482,13 +2482,171 @@ class Users(APIView):
 
 <hr />
 
-# Graphql API
+## 비밀번호 변경하기
 
-<hr />
+> `user.check_password` : 해시된 password 가 일치하는지 확인해주는 매소드
+
+users/views.py
+```py
+class ChangePassword(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+        if not old_password or not new_password:
+            raise ParseError
+        if user.check_password(old_password): #해시된 pw 가 일치하는지 체크해줌
+            user.set_password(new_password)
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            raise ParseError
+```
+
+## Login / Logout
+
+> 장고에 내장된 `from django.contrib.auth import authenticate, login, logout` 를 사용합시다
+
+- `authenticate(request, username, password)` : username 과 password를 입력하고 일치하면 user 를 리턴하는 함수
+- `login(request, user)` : 유저를 로그인 시켜주는 함수
+- `logout(request)` : 유저를 로그아웃 시켜주는 함수
+
+users/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    ...,
+    path("log-in", views.LogIn.as_view()),
+    path("log-out", views.LogOut.as_view()),
+]
+```
+
+```py
+from django.contrib.auth import authenticate, login, logout
+
+class LogIn(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not username or not password:
+            raise ParseError
+        user = authenticate(
+            request,
+            username=username,
+            password=password,
+        )
+        if user:
+            login(request, user)
+            return Response({"ok": "Welcome!"})
+        else:
+            return Response({"error": "wrong password"})
+
+
+class LogOut(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        logout(request)
+        return Response({"ok": "bye!"})
+```
+
+
 
 # Authentication
 
+> `config/settings.py` 에서 DRF 인증의 방식을 변경할 수 있습니다: <br />
+> > `DEFAULT_AUTHENTICATION_CLASSES` 를 변경합니다. (django 에게 user 를 알려주는 수단을 설정)
+
+config/settings.py
+```py
+# Default
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
+```
+
+- Custom Authentication 은 이것만 지키면 됩니다 : "인증되면 user를 리턴하고 안되면 None 을 리턴해야 한다!"
+- 이렇게 반환된 user 는 django 가 request.user 에 알아서 넣어줍니다.
+
+## 세션방식
+기본 설정입니다.
+- 강제 로그아웃 시키기 가능
+- 쿠키 이용
+
+## 기본방식
+- 비추천
+## 토큰방식
+- 강제 로그아웃 시키기 가능
+- DB에 유저 정보 저장 필요
+- 로그인 시도마다 DB 검색
+
+## JWT 방식
+- 강제 로그아웃 시키기 불가능
+- `pyJWT` 라이브러리로 구현
+- 토큰에 담는 정보는 public 인 내용이어야 합니다. (보안상 중요한 내용은 payload에 넣지 않습니다.)
+- SECRET_KEY 를 잘 보관해야 합니다. ()
+
 <hr />
+
+# GraphQL
+
+> strawberry 를 이용하여 graphQL 을 만들어 봅시다.
+## 설치
+- `poetry add 'strawberry-graphql[debug-server]'` : strawberry 설치
+- `poetry add strawberry-graphql-django`
+
+## 세팅
+
+config/settings.py
+```py
+INSTALLED_APPS = [
+    ...,
+    "strawberry.django",
+]
+```
+
+> type query 를 만들어봅시다
+
+config/schema.py
+```py
+import strawberry
+
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def ping(self) -> str: # 해당 타이핑이 graphql 에 타입을 알려줍니다.
+        return "pong"
+
+schema = strawberry.Schema(query=Query)
+```
+
+config/urls.py
+```py
+from strawberry.django.views import GraphQLView
+from .schema import schema
+
+urlpatterns = [
+    ...,
+    path("graphql", GraphQLView.as_view(schema=schema)),
+]
+```
+
+> /graphql 로 접속하면 graphql 뷰어를 볼수 있습니다.
+
+![](readMeImages/2023-08-25-13-05-01.png)
+
+
+
+
 
 # API Testing
 
