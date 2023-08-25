@@ -2778,7 +2778,9 @@ class Query:
 
 ![](readMeImages/2023-08-25-15-00-36.png)
 
-## type relationships
+## type relationships & paginated relationship
+
+- `@strawberry.field` 가 데코된 메서드의 리턴값은 해당 메소드의 식별자와 key-value 관계로 데이터가 만들어집니다.
 
 rooms/types.py
 ```py
@@ -2793,6 +2795,19 @@ class RoomType:
     name: auto
     kind: auto
     owner: "UserType" # 문자열으로 적어야 합니다. (UserType 대신 "UserType")
+
+    # reverse accessor
+    # room 에 속한 review 들을 찾아내고 paginating 합니다.
+    @strawberry.field
+    def reviews(self, page: int) -> typing.List["ReviewType"]:
+        page_size = settings.PAGE_SIZE
+        start = (page - 1) * page_size
+        end = start + page_size
+        return self.reviews.all()[start:end]
+
+    @strawberry.field
+    def rating(self) -> str:
+        return self.rating()
 ```
 
 users/types.py
@@ -2808,6 +2823,9 @@ class UserType:
     email: auto
     username: auto
 ```
+
+![](readMeImages/2023-08-25-15-43-30.png)
+
 # API Testing
 
 {
