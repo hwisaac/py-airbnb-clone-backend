@@ -2912,6 +2912,50 @@ class RoomType:
         ).exists()
 ```
 
+## permission class
+
+> 데이터를 요청한 유저가 인증되지 않았을 때 에러를 발생시켜야 합니다. 이를 더 쉽게 하는 방법은 permission class 를 이용하면 됩니다.
+
+rooms/queries.py
+```py
+# 적용 전
+
+def get_all_rooms(info: Info):
+    if info.context.request.user.is_authenticated:
+        return models.Room.objects.all()
+    else:
+        raise Exception("Not Auth")
+```
+
+
+permission class 적용 후
+rooms.schema.py
+```py
+from common.permissions import OnlyLoggedIn
+
+@strawberry.type
+class Query:
+    all_rooms: typing.List[types.RoomType] = strawberry.field(
+        resolver=queries.get_all_rooms,
+        permission_classes=[OnlyLoggedIn], # permission_classes
+    )
+```
+
+common/permissions
+```py
+from strawberry.permission import BasePermission
+from strawberry.types import Info
+import typing
+
+
+class OnlyLoggedIn(BasePermission):
+
+    message = "You need to be logged in for this!"
+    # 이 함수가 True를 반환하면 문제 없이 동작하고, False 를 리턴하면 에러 메세지를 보여줍니다.
+    def has_permission(self, source: typing.Any, info: Info):
+        return info.context.request.user.is_authenticated
+```
+
 # API Testing
 
 {
