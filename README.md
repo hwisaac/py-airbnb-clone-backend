@@ -2710,6 +2710,75 @@ schema = strawberry.Schema(
 
 ```
 
+## Django 와 GraphQL
+
+> strawberry type 을 장고에 연결해봅시다!
+
+config/schema.py
+```py
+import strawberry
+from rooms import schema as rooms_schema
+
+
+@strawberry.type
+class Query(rooms_schema.Query):
+    pass
+
+
+@strawberry.type
+class Mutation:
+    pass
+
+
+schema = strawberry.Schema(
+    query=Query,
+)
+```
+
+#### rooms 
+
+rooms/types.py
+```py
+import strawberry
+from strawberry import auto
+from . import models
+
+@strawberry.django.type(models.Room)
+class RoomType:
+    id: auto # auto 로 지정하면 타입을 자동으로 추론합니다.
+    name: auto
+    kind: auto
+```
+
+> resolvers 를 만듭시다.
+
+rooms/queries.py
+```py
+from . import models
+
+def get_all_rooms():
+    return models.Room.objects.all()
+```
+
+> room 앱을 위한 `urls.py` 있듯이. room 을 위한 `schema.py` 를 만듭시다.
+
+rooms/schema.py
+```py
+import strawberry
+import typing
+from . import types
+from . import queries
+
+@strawberry.type
+class Query:
+    all_rooms: typing.List[types.RoomType] = strawberry.field(
+        resolver=queries.get_all_rooms,
+    )
+```
+
+![](readMeImages/2023-08-25-15-00-36.png)
+
+
 # API Testing
 
 {
