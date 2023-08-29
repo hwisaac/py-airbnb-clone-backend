@@ -33,7 +33,7 @@ SECRET_KEY = "django-insecure-3)nst418918z6=19!vnw)yjd$j85p5=y7++k4o^mdpkqd4ci+y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "strawberry.django",
+    "corsheaders",
 ]
 
 CUSTOM_APPS = [
@@ -68,6 +69,7 @@ SYSTEM_APPS = [
 INSTALLED_APPS = SYSTEM_APPS + CUSTOM_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -169,3 +171,8 @@ REST_FRAMEWORK = {
         "config.authentication.JWTAuthentication",
     ]
 }
+
+# CORS 에러 해결
+
+CORS_ORIGIN_WHITELIST = ['http://127.0.0.1:3000' ,'http://localhost:3000']
+CORS_ALLOW_CREDENTIALS = True

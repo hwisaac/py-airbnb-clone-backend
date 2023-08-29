@@ -2968,3 +2968,8 @@ class OnlyLoggedIn(BasePermission):
 		"top_p" : 0.95
 	}
 }
+
+# CORS 에러
+
+- `poetry add django-cors-headers`
+- 
