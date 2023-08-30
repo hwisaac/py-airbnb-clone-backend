@@ -27,8 +27,8 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-3)nst418918z6=19!vnw)yjd$j85p5=y7++k4o^mdpkqd4ci+y"
-# SECRET_KEY = env("SECRET_KEY")
+# SECRET_KEY = "django-insecure-3)nst418918z6=19!vnw)yjd$j85p5=y7++k4o^mdpkqd4ci+y"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -178,3 +178,8 @@ CORS_ORIGIN_WHITELIST = ['http://127.0.0.1:3000' ,'http://localhost:3000']
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:3000' ,'http://localhost:3000']
+
+GH_SECRET = env("GH_SECRET")
+GH_CLIENT_ID = env("GH_CLIENT_ID")
+KAKAO_REST_API_KEY=env("KAKAO_REST_API_KEY")
+BASE_URL=env("BASE_URL")

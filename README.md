@@ -2995,3 +2995,149 @@ class OnlyLoggedIn(BasePermission):
 3. `scope` 은 사용자로부터 얻고싶은 정보 목록을 의미합니다. (scope 를 설정하지 않으면, public 정보만 얻어야 합니다.)
 4. 이 요청을 통해 authorize 가 되면, github 는 이 내용을 기억하고 자동으로 인증해줍니다.
 5. authorize 를 클릭하면 `{설정한URL}?code={CODE_VALUES}`로 리다이렉트 하는데 `CODE_VALUES` 를 백엔드에 보내서 처리합니다.
+    - BE 에서 해당 코드를 받아 `https://github.com/login/oauth/access_token` 에 POST요청으로 코드를 담아 보냅니다 [링크](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) 그리고 access token 을 받아야 합니다.
+    - `poetry add requests` BE에서 Github API 로 POST 요청을 보내기 위해 `requests` 를 설치해줍니다.
+
+users/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    ...
+    path("github", views.GithubLogIn.as_view()),
+]
+```
+
+config/settings.py
+```py
+GH_SECRET = env("GH_SECRET")
+```
+
+users/views.py
+```py
+import requests
+
+class GithubLogIn(APIView):
+    def post(self, request):
+        try:
+            code = request.data.get("code")
+            access_token = requests.post(
+                f"https://github.com/login/oauth/access_token?code={code}&client_id={settings.GH_CLIENT_ID}&client_secret={settings.GH_SECRET}",
+                headers={"Accept": "application/json"},
+            )
+            access_token = access_token.json().get("access_token")
+            user_data = requests.get(
+                "https://api.github.com/user",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            )
+            user_data = user_data.json()
+            user_emails = requests.get(
+                "https://api.github.com/user/emails",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            )
+            user_emails = user_emails.json()
+            try:
+                user = User.objects.get(email=user_emails[0]["email"])
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                user = User.objects.create(
+                    username=user_data.get("login"),
+                    email=user_emails[0]["email"],
+                    name=user_data.get("name"),
+                    avatar=user_data.get("avatar_url"),
+                )
+                user.set_unusable_password()
+                user.save()
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+```
+
+## 카카오 OAuth
+
+### 셋업
+1. https://developers.kakao.com/console/app 접속해서 앱을 등록합니다.
+2. [카카오 로그인] 탭에 가서 활성화 해줍니다.
+
+![](readMeImages/2023-08-30-11-12-30.png)
+
+3. Redirect URI 를 설정해줍니다.
+![](readMeImages/2023-08-30-11-13-46.png)
+
+4. [동의항목]으로 가서 어떤 정보를 가져올지 설정합니다. (profile_nickname 은 필수동의로)
+
+![](readMeImages/2023-08-30-11-15-41.png)
+
+### rest-api
+[rest-api 사용법](https://developers.kakao.com/docs/latest/ko/kakaologin/rest-api)
+
+- `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}` 에 요청을 해야 합니다. 
+- 프론트에서 이 요청을 통해 code 를 받으면 code를 BE 에 넘깁니다.
+- BE는 code로 accessToken 을 교환합니다.
+
+users/urls.py
+```py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    ...
+    path("kakao", views.KakaoLogIn.as_view()),
+]
+```
+
+users/views.py
+```py
+...
+class KakaoLogIn(APIView):
+    def post(self, request):
+        try:
+            code = request.data.get("code")
+            access_token = requests.post(
+                "https://kauth.kakao.com/oauth/token",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": settings.KAKAO_REST_API_KEY,
+                    "redirect_uri": f"{settings.BASE_URL}/social/kakao",
+                    "code": code,
+                },
+            )
+            access_token = access_token.json().get("access_token")
+            user_data = requests.get(
+                "https://kapi.kakao.com/v2/user/me",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-type": "application/x-www-form-urlencoded;charset=utf-8",
+                },
+            )
+            user_data = user_data.json()
+            kakao_account = user_data.get("kakao_account")
+            profile = kakao_account.get("profile")
+            try:
+                user = User.objects.get(email=kakao_account.get("email"))
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                user = User.objects.create(
+                    email=kakao_account.get("email"),
+                    username=profile.get("nickname"),
+                    name=profile.get("nickname"),
+                    avatar=profile.get("profile_image_url"),
+                )
+                user.set_unusable_password()
+                user.save()
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+```
