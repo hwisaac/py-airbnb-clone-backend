@@ -2972,4 +2972,26 @@ class OnlyLoggedIn(BasePermission):
 # CORS 에러
 
 - `poetry add django-cors-headers`
-- 
+
+
+# OAuth 
+
+1. https://github.com/settings/applications/new 로 접속해서 어플리케이션을 만듭니다.
+
+![](readMeImages/2023-08-29-18-11-56.png)
+
+2. client ID 를 복제하여 해당 사이트로 리다이렉트 시킵니다.
+
+```ts
+<Button
+    as='a'
+    href={`https://github.com/login/oauth/authorize?client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&scope=read:user,user:email`}
+    w='100%'
+    leftIcon={<FaGithub />}>
+    Continue with Github
+</Button>
+```
+
+3. `scope` 은 사용자로부터 얻고싶은 정보 목록을 의미합니다. (scope 를 설정하지 않으면, public 정보만 얻어야 합니다.)
+4. 이 요청을 통해 authorize 가 되면, github 는 이 내용을 기억하고 자동으로 인증해줍니다.
+5. authorize 를 클릭하면 `{설정한URL}?code={CODE_VALUES}`로 리다이렉트 하는데 `CODE_VALUES` 를 백엔드에 보내서 처리합니다.
