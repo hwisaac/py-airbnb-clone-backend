@@ -3141,3 +3141,48 @@ class KakaoLogIn(APIView):
         except Exception:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 ```
+
+# Cloudflare (이미지 업로드)
+- $5/월
+- `CF_TOKEN`: [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens) 에서 사용자 API 토큰을 발급받습니다. 
+- image 대시보드에서 `CF_ID` 값을 가져옵니다.
+
+![](readMeImages/2023-08-30-16-50-46.png)
+
+원리
+1. FE에서 업로드 할 URL 을 달라는 요청이 들어옵니다.
+2. Cloudflare 에서 업로드를 할 수 있는 URL (1회성)을 받습니다. (`CF_ID` 와 `CF_TOKEN` 필요)
+3. 업로드URL을 FE 에 보냅니다.
+4. FE 는 해당 URL 에 파일을 업로드 합니다. (Cloudflare)
+5. 이미지의 주소를 받아서 django 의 db 에 업데이트 합니다.
+
+medias/urls.py
+```py
+from .views import GetUploadURL
+
+urlpatterns = [
+    path("photos/get-url", GetUploadURL.as_view()),
+    ...
+]
+```
+
+medias/views.py
+```py
+import requests
+from django.conf import settings
+from rest_framework.views import APIView
+
+class GetUploadURL(APIView):
+    def post(self, request):
+        url = f"https://api.cloudflare.com/client/v4/accounts/{settings.CF_ID}/images/v2/direct_upload"
+        one_time_url = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {settings.CF_TOKEN}",
+            },
+        )
+        one_time_url = one_time_url.json()
+        result = one_time_url.get("result")
+        return Response({"id": result.get("id"), "uploadURL": result.get("uploadURL")})
+
+```

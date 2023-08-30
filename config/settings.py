@@ -184,5 +184,5 @@ GH_CLIENT_ID = env("GH_CLIENT_ID")
 KAKAO_REST_API_KEY=env("KAKAO_REST_API_KEY")
 BASE_URL=env("BASE_URL")
 
-# CF_ID = env("CF_ID")
-# CF_TOKEN = env("CF_TOKEN")
+CF_ID = env("CF_ID")
+CF_TOKEN = env("CF_TOKEN")
