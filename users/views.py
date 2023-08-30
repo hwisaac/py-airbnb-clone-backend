@@ -1,3 +1,4 @@
+from time import sleep
 import jwt
 import requests
 from django.conf import settings
