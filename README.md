@@ -3240,7 +3240,7 @@ services:
         value: 4
 ```
 
-## 코드가 render 에 업로드 될시 실행할 script
+코드가 render 에 업로드 될시 실행할 script
 
 /build.sh
 ```sh
@@ -3253,3 +3253,8 @@ poetry install
 python manage.py collectstatic --no-input
 python manage.py migrate
 ```
+
+## render.com
+
+blueprint instance 를 생성합니다.
+![](readMeImages/2023-09-06-17-57-24.png)
