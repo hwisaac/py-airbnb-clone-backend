@@ -3186,3 +3186,70 @@ class GetUploadURL(APIView):
         return Response({"id": result.get("id"), "uploadURL": result.get("uploadURL")})
 
 ```
+
+# 배포
+https://render.com/docs/deploy-django
+
+1. https://render.com/ 에 배포
+2. 배포시 postgres DB를 사용
+
+config/settings.py
+```py
+DEBUG = "RENDER" not in os.environ
+```
+
+```bash
+poetry add dj-database-url psycopg2-binary
+```
+
+- `dj-database-url`: url을 통해 db를 연결할 수 있게 하는 라이브러리
+- `psycopg2-binary`: postgresSQL 과 django 과 대화할수 있는 드라이버
+
+```bash
+poetry add 'whitenoise[brotli]'
+```
+- DRF 인 browsable api 에 필요한 css, js 파일을 포함한 static 파일 등(admin 패널에 필요)을 
+
+gunicorn 설치
+```bash
+poetry add gunicorn
+```
+
+
+/render.yaml
+```yaml
+databases:
+  - name: mysite
+    databaseName: mysite
+    user: mysite
+
+services:
+  - type: web
+    name: mysite
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn mysite.wsgi:application"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mysite
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
+```
+
+## 코드가 render 에 업로드 될시 실행할 script
+
+/build.sh
+```sh
+#!/usr/bin/env bash
+# exit on error
+set -o errexit
+
+poetry install
+
+python manage.py collectstatic --no-input
+python manage.py migrate
+```
